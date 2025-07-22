@@ -1,5 +1,2 @@
-fetch('admin/config.yml')
-    .then(res => res.text())
-    .then(text => {
-        console.log("Netlify CMS cargado correctamente.");
-    });
+// No es necesario fetch de config con Decap CMS, el front sigue igual
+console.log('Página cargada correctamente.');

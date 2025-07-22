@@ -9,7 +9,7 @@ collections:
   - name: "pagina"
     label: "Contenido de la Página"
     files:
-      - file: "index.html"
+      - file: "../index.html"
         label: "Landing Page"
         name: "landing"
         fields:
