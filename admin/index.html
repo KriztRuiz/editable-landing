@@ -1,10 +1,20 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Editor</title>
-  <script src="https://unpkg.com/decap-cms@^3.1.2/dist/decap-cms.js"></script>
+  <meta charset="utf‑8">
+  <link rel="stylesheet" href="…"/>
+  <link rel="cms‑config‑url" href="config.yml" />
 </head>
-<body></body>
+<body>
+  <div id="nc-root"></div>
+
+  <!-- Decap CMS + dependencia de identidad -->
+  <script src="https://unpkg.com/decap-cms@^3/dist/decap-cms.js"></script>
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <script>
+    // Inicialización manual si la necesitas
+    window.CMS_MANUAL_INIT = true;
+  </script>
+  <script src="admin.js"></script>
+</body>
 </html>
