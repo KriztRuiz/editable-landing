@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { scroll-behavior: smooth; }
+
+@layer components {
+  /* Full width en móvil, centrado y límite fluido en desktop */
+  .container-xl { @apply w-full mx-auto max-w-screen-xl px-3 sm:px-4; }
+
+  .section { @apply py-12 md:py-16; }
+  .card { @apply rounded-2xl bg-white border border-black/5 shadow-soft; }
+  .badge { @apply inline-block rounded-full px-3 py-1 text-xs font-medium bg-black/5; }
+  .btn { @apply inline-flex items-center gap-2 rounded-xl px-4 py-2 font-semibold shadow-soft hover:scale-[1.02] active:scale-100 transition; }
+  .btn-primary { @apply text-white; }
+  .btn-outline { @apply border border-black/10; }
+
+  /* Wrapper responsivo para mapas (16:9) */
+  .map-embed { position:relative; width:100%; padding-bottom:56.25%; height:0; border-radius:1rem; overflow:hidden; }
+  .map-embed iframe, .map-embed img { position:absolute; inset:0; width:100%; height:100%; border:0; object-fit:cover; }
+}
+
+@layer utilities {
+  /* Si usabas shadow-soft y Tailwind no la tiene, defínela aquí */
+  .shadow-soft { box-shadow: 0 8px 30px rgb(0 0 0 / 0.08); }
+
+  /* Padding seguro para notch (útil en /admin si pegas al borde) */
+  .safe-px {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* Evita desbordes en layouts flex/grid estrechos */
+* { min-width: 0; }

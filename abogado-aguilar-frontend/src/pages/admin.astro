@@ -1,0 +1,16 @@
+---
+import "../styles/global.css";
+import AdminApp from "../components/admin/AdminApp";
+const defaultSiteId = "bufete-ejemplo";
+const currentSiteId = Astro.url.searchParams.get("site") ?? defaultSiteId;
+---
+<html lang="es">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+  </head>
+  <body class="bg-white">
+    <!-- 👇 cambia client:load por client:only -->
+    <AdminApp siteId={currentSiteId} client:only="react" />
+  </body>
+</html>

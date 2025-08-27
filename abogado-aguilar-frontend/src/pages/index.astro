@@ -1,0 +1,67 @@
+---
+// src/pages/index.astro
+import "../styles/global.css";
+import App from "../components/App";
+
+// ⚙️ Ajusta estos dos a tu caso:
+const siteId = "bufete-ejemplo"; // cámbialo si usas otro
+const SEO = {
+  title: "Abogado — Bufete Ejemplo",
+  description: "Asesoría legal profesional. Defensa, contratos y más.",
+};
+
+// Canonical absoluta (requiere `site` en astro.config.*)
+const canonical = Astro.site
+  ? new URL(Astro.url.pathname, Astro.site).href
+  : undefined;
+
+// Imagen para social (pon un archivo real en /public, p. ej. /og.jpg o /cover.jpg)
+const ogImage = Astro.site ? new URL("/og.jpg", Astro.site).href : undefined;
+
+// JSON-LD (mínimo y seguro; amplíalo con teléfono, dirección, etc.)
+const legalLD = {
+  "@context": "https://schema.org",
+  "@type": "LegalService",
+  "name": "Bufete Ejemplo",
+  ...(canonical ? { "url": canonical } : {}),
+};
+---
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+
+    <!-- SEO básico -->
+    <title>{SEO.title}</title>
+    <meta name="description" content={SEO.description} />
+    <meta name="robots" content="index,follow" />
+    {canonical && <link rel="canonical" href={canonical} />}
+    <meta name="theme-color" content="#ffffff" />
+
+    <!-- Open Graph (lo esencial) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={SEO.title} />
+    <meta property="og:description" content={SEO.description} />
+    {canonical && <meta property="og:url" content={canonical} />}
+    {ogImage && <meta property="og:image" content={ogImage} />}
+
+    <!-- Twitter Cards (summary con imagen grande) -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={SEO.title} />
+    <meta name="twitter:description" content={SEO.description} />
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
+
+    <!-- JSON-LD -->
+    <script type="application/ld+json" set:html={JSON.stringify(legalLD)} />
+
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body class="bg-white">
+    <App siteId={siteId} client:load />
+  </body>
+</html>
