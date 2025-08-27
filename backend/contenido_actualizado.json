@@ -1,0 +1,65 @@
+{
+  "profile": {
+    "fullName": "Lic. Cesar Ivan Aguilar",
+    "licenseId": "Cédula 123456",
+    "headline": "Defensa legal clara y cercana",
+    "intro": "Atiendo asuntos de familia, penal y laboral en Sabinas Hidalgo y Monterrey."
+  },
+  "contact": {
+  "phone": "8241003510",
+  "whatsapp": "https://wa.me/528241003510",
+  "email": "contacto@aguilarlegal.com",
+  "address": "Pablo de Los Santos 660, Centro de Sabinas Hidalgo, 65210 Sabinas Hidalgo, N.L.",
+  "mapUrl": "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d875.1401877267573!2d-100.17341987531124!3d26.50514039196072!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x86623eb5a69bb88b%3A0xb78af5bb65627509!2sNotaria%20P%C3%BAblica%20N%C3%BAmero%20128!5e0!3m2!1ses-419!2smx!4v1756146362529!5m2!1ses-419!2smx"
+},
+  "specialties": [
+    { "name": "Familiar" },
+    { "name": "Penal" },
+    { "name": "Laboral" }
+  ],
+  "services": [
+    { "name": "Consulta inicial", "description": "30-45 min", "priceMin": 0, "priceMax": 0 }
+  ],
+  "faqs": [
+    { "q": "¿La primera consulta tiene costo?", "a": "No, la primera orientación es gratuita." }
+  ],
+  "testimonials": [
+    { "author": "M. García", "text": "Atención rápida y resultados." }
+  ],
+  "schedule": [
+    { "days": "Lun-Vie", "open": "09:00", "close": "18:00" }
+  ],
+  "cta": {
+    "preferred": "whatsapp",
+    "whatsappMessage": "Hola, me gustaría una orientación legal."
+  },
+  "seo": {
+    "title": "Abogada en Sabinas Hidalgo | Familia, Penal, Laboral",
+    "description": "Asesoría y representación legal profesional en Sabinas Hidalgo y Monterrey.",
+    "cityKeywords": ["Sabinas Hidalgo", "Monterrey", "Nuevo León"]
+  },
+  "theme": {
+    "colors": {
+      "primary": "#0f172a",
+      "secondary": "#1e293b",
+      "background": "#ffffff",
+      "text": "#0b0b0b"
+    }
+  },
+  "legal": {
+    "privacyPolicy": "Aviso de privacidad aquí.",
+    "disclaimers": ""
+  },
+  "settings": {
+    "layoutOption": 1,
+    "mainArea": "familiar",
+    "targetCity": "Sabinas Hidalgo"
+  },
+  "sections": {
+    "showAreas": true,
+    "showServices": true,
+    "showFaqs": true,
+    "showTestimonials": true,
+    "showMap": true
+  }
+}
