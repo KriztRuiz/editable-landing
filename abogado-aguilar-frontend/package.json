@@ -11,6 +11,7 @@
   "dependencies": {
     "@astrojs/react": "^4.3.0",
     "@astrojs/tailwind": "^6.0.2",
+    "@astrojs/vercel": "^8.2.6",
     "astro": "^5.13.3",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.541.0"
