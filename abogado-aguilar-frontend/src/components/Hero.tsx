@@ -34,7 +34,7 @@ export default function Hero({ data }: { data: SiteContent }) {
   const primary = theme.colors.primary;
   const displayName = profile.fullName.startsWith("Lic.")
     ? profile.fullName
-    : `Lic. ${profile.fullName}`;
+    : `${profile.fullName}`;
   const cover = theme.coverUrl;
 
   // A11y: respeta "Reducir movimiento"
