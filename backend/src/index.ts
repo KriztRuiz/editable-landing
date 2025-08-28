@@ -10,7 +10,7 @@ import { contentRouter } from "./routes/content.js";
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN?.split(",") || true }));
+app.use(cors())
 app.use(helmet());
 app.use(rateLimit({ windowMs: 60_000, limit: 120 }));
 
