@@ -10,7 +10,7 @@ export async function fetchContent(siteId: string): Promise<SiteContent> {
 
   // (Opcional) timeout seguro
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 10000);
+  const t = setTimeout(() => controller.abort(), 30000);
 
   try {
     const res = await fetch(url, {
