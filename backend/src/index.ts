@@ -9,6 +9,7 @@ import { authRouter } from "./routes/auth.js";
 import { contentRouter } from "./routes/content.js";
 
 const app = express();
+app.set('trust proxy', true);
 app.use(express.json({ limit: "1mb" }));
 app.use(cors())
 app.use(helmet());
