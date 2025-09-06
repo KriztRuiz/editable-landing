@@ -7,8 +7,8 @@ import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
-import {authRouter} from './routes/auth';
-import {contentRouter} from './routes/content';
+import {authRouter} from './routes/auth.js';
+import {contentRouter} from './routes/content.js';
 
 dotenv.config();
 
