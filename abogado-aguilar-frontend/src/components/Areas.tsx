@@ -42,7 +42,15 @@ export default function Areas({ items }: { items: Specialty[] }) {
               whileTap={{ scale: 0.99 }}
               transition={{ type: "spring", stiffness: 260, damping: 20, mass: 0.5 }}
             >
-              <h3 className="font-semibold text-lg">{s.name}</h3>
+            <h3
+              className="font-semibold text-lg px-2 py-1 rounded"
+              style={{
+                color: "var(--t)",
+                backgroundColor: "color-mix(in srgb, var(--t) 5%, transparent)",
+              }}
+            >
+              {s.name}
+            </h3>
               {s.description && (
                 <p className="mt-2 text-black/70">{s.description}</p>
               )}
