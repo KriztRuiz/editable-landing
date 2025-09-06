@@ -9,7 +9,7 @@ import vercel from "@astrojs/vercel";
 
 export default defineConfig({
   // usado para canonical/sitemap
-  site: process.env.PUBLIC_SITE_URL || "https://editable-landing-kriztruizs-projects.vercel.app",
+  site: process.env.PUBLIC_SITE_URL || "https://editable-landing.vercel.app",
 
   integrations: [react(), tailwind(), sitemap(), robotsTxt()],
 
