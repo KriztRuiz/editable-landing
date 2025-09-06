@@ -72,7 +72,7 @@ export default function AdminApp({ siteId }: { siteId: string }) {
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   // 🟢 accesibilidad: respeta "Reducir movimiento"
-  const reduce = useReducedMotion(); // para minimizar desplazamientos si el usuario lo solicita. :contentReference[oaicite:1]{index=1}
+  const reduce = useReducedMotion(); // para minimizar desplazamientos si el usuario lo solicita.
 
   // Carga inicial
   useEffect(() => {
@@ -84,7 +84,17 @@ export default function AdminApp({ siteId }: { siteId: string }) {
         setInitial(d);
         setGlobalError(null);
       })
-      .catch((e) => setGlobalError(e.message))
+      .catch((e: any) => {
+        // Si la API devuelve 401 (token caducado o inválido),
+        // eliminamos el token para volver a mostrar la pantalla de login.
+        if (e?.status === 401 || (typeof e?.message === 'string' && e.message.includes('401'))) {
+          localStorage.removeItem('authToken');
+          setToken(null);
+          setGlobalError(null);
+        } else {
+          setGlobalError(e?.message);
+        }
+      })
       .finally(() => setLoading(false));
   }, [token, siteId]);
 
@@ -98,7 +108,6 @@ export default function AdminApp({ siteId }: { siteId: string }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, data, saving]);
 
   // Aviso al cerrar si hay cambios sin guardar
