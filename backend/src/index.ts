@@ -19,8 +19,10 @@ const NUMBER_OF_PROXIES = 1;
 app.set('trust proxy', NUMBER_OF_PROXIES);
 
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(express.json());
+
+app.options('*', cors());
 
 // Configuración del limitador
 const limiter = rateLimit({
