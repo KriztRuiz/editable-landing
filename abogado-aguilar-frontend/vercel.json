@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/help/(.*)",
+      "destination": "https://editable-landing-backend.onrender.com/api/help/$1"
+    }
+  ]
+}
