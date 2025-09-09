@@ -1,0 +1,12 @@
+
+# Secrets
+.env
+*.env
+backend/.env
+
+backend/.env.example
+# Dependency directories
+node_modules/
+# Build output
+dist/
+.astro/
