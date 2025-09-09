@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 
 import {authRouter} from './routes/auth.js';
 import {contentRouter} from './routes/content.js';
+import helpRouter from './routes/help.js';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.get('/health', (_, res) => {
 // Rutas
 app.use('/api/auth', authRouter);
 app.use('/api/content', contentRouter);
+app.use('/api/help', helpRouter);
 
 // Conexión a Mongo y arranque del servidor
 const MONGO_URL = process.env.MONGO_URL || '';

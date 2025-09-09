@@ -8,6 +8,7 @@ import Faq from "./Faq";
 import Testimonials from "./Testimonials";
 import Footer from "./Footer";
 import StickyCTA from "./StickyCTA";
+import HelpButton from './help/HelpButton';
 
 // 🟢 NUEVO: Motion (respeta "reducir movimiento")
 import { motion, useReducedMotion } from "framer-motion";
@@ -67,6 +68,7 @@ export default function App({ siteId }: { siteId: string }) {
   }
 
   return (
+    <>
     // Contenedor con fade-in y transición de colores por si cambian variables CSS del tema
     <motion.div
       style={cssVars}
@@ -118,5 +120,8 @@ export default function App({ siteId }: { siteId: string }) {
       {/* CTA pegajoso: queda como lo tienes (animarlo aquí podría duplicar efectos con su propio componente) */}
       <StickyCTA data={data} />
     </motion.div>
+
+    <HelpButton />
+    </>
   );
 }
