@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import Faq from '../models/Faq';
-import Ticket from '../models/Ticket';
-import ChatSession from '../models/ChatSession';
-import ChatMessage from '../models/ChatMessage';
-import MetricEvent from '../models/MetricEvent';
+import Faq from '../models/Faq.js';
+import Ticket from '../models/Ticket.js';
+import ChatSession from '../models/ChatSession.js';
+import ChatMessage from '../models/ChatMessage.js';
+import MetricEvent from '../models/MetricEvent.js';
 import { OpenAI } from 'openai';
 
 const router = Router();
