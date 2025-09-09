@@ -8,6 +8,7 @@ import {
   useReducedMotion,
   useScroll,
 } from "framer-motion";
+import HelpButton from './help/HelpButton';
 import { useState } from "react";
 
 export default function StickyCTA({ data }: { data: SiteContent }) {
@@ -80,6 +81,7 @@ export default function StickyCTA({ data }: { data: SiteContent }) {
           </motion.a>
         </motion.div>
       )}
+          <HelpButton />
     </AnimatePresence>
   );
 }
