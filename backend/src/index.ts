@@ -41,6 +41,8 @@ app.get('/health', (_, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+app.get('/api/health', (_, res) => res.json({ ok: true }));
+
 // Rutas
 app.use('/api/auth', authRouter);
 app.use('/api/content', contentRouter);
