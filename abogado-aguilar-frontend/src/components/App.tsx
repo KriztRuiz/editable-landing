@@ -1,123 +1,88 @@
-import { useEffect, useMemo, useState } from "react";
-import type { SiteContent } from "../types";
-import { fetchContent, primaryCssVars } from "../lib/api";
-import Hero from "./Hero";
-import Areas from "./Areas";
-import Services from "./Services";
-import Faq from "./Faq";
-import Testimonials from "./Testimonials";
-import Footer from "./Footer";
-import StickyCTA from "./StickyCTA";
+// abogado-aguilar-frontend/src/App.tsx
+import { useEffect, useState } from "react";
 
-// 🟢 NUEVO: Motion (respeta "reducir movimiento")
-import { motion, useReducedMotion } from "framer-motion";
+/**
+ * Base de la API (prod: Render). Puedes sobreescribirla en Vercel con
+ * PUBLIC_HELP_API_BASE=https://editable-landing-backend.onrender.com
+ */
+const API_BASE = (import.meta.env.PUBLIC_HELP_API_BASE ||
+  "https://editable-landing-backend.onrender.com"
+).replace(/\/$/, "");
 
-export default function App({ siteId }: { siteId: string }) {
-  // 1) Hooks SIEMPRE al tope y en el mismo orden en todos los renders
-  const [data, setData] = useState<SiteContent | null>(null);
-  const [error, setError] = useState<string | null>(null);
+type Status = "checking" | "ok" | "down";
 
-  useEffect(() => {
-    fetchContent(siteId)
-      .then(setData)
-      .catch((e) => setError(String(e)));
-  }, [siteId]);
-
-  const cssVars = useMemo(
-    () => (data ? primaryCssVars(data.theme.colors) : {}),
-    [data]
+function ErrorBox({ message }: { message: string }) {
+  return (
+    <div className="min-h-[40vh] flex items-center justify-center">
+      <div className="max-w-xl w-full rounded-xl border border-red-200 bg-red-50 p-6 text-red-700 shadow-sm">
+        <h2 className="text-lg font-semibold">Error</h2>
+        <p className="mt-2">{message}</p>
+        <ul className="mt-3 list-disc pl-5 text-sm text-red-600">
+          <li>Verifica que la API esté en línea.</li>
+          <li>
+            Revisa la variable{" "}
+            <code className="px-1 rounded bg-white border">PUBLIC_HELP_API_BASE</code>{" "}
+            en Vercel (Project → Settings → Environment Variables).
+          </li>
+        </ul>
+      </div>
+    </div>
   );
+}
 
-  // 🟢 NUEVO: accesibilidad (respeta "prefers-reduced-motion")
-  const reduce = useReducedMotion();
+export default function App({ siteId }: { siteId?: string }) {
+  const [status, setStatus] = useState<Status>("checking");
+  const [errMsg, setErrMsg] = useState<string>("");
 
-  // Variantes/props de animación de sección reutilizables (scroll reveal)
-  const sectionMotionProps = {
-    initial: { opacity: 0, y: reduce ? 0 : 16 },
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true, amount: 0.2 },
-    transition: { duration: 0.45, ease: "easeOut" }
-  } as const;
-
-  // 2) Efecto de SEO: se llama SIEMPRE, pero no hace nada si no hay datos
   useEffect(() => {
-    if (!data) return;
-    document.title = data.seo?.title ?? document.title;
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta && data.seo?.description) meta.setAttribute("content", data.seo.description);
-  }, [data]);
+    // Chequeo rápido para evitar pantalla en blanco si la API no responde
+    const check = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/health`, {
+          method: "GET",
+          // evita cache en navegadores intermedios / CDN
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        setStatus("ok");
+      } catch (e: any) {
+        setErrMsg(
+          `No se pudo conectar a la API (${e?.message ?? "motivo desconocido"}).`
+        );
+        setStatus("down");
+      }
+    };
+    check();
+  }, []);
 
-  // 3) Render
-  if (error) {
-    return <div className="container-xl py-12 text-red-600">Error: {error}</div>;
-  }
-
-  // Cargando: fade-in sutil (no cambié tu copy ni layout)
-  if (!data) {
+  if (status === "checking") {
     return (
-      <motion.div
-        className="container-xl py-12"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.25 }}
-      >
+      <div className="min-h-[40vh] flex items-center justify-center text-gray-600">
         Cargando…
-      </motion.div>
+      </div>
     );
   }
 
+  if (status === "down") {
+    return <ErrorBox message={errMsg} />;
+  }
+
+  // ✅ Si la API está OK, muestra tu landing normalmente.
+  // OJO: el HelpButton ya está en el <Footer />, así que NO lo renderizamos aquí.
   return (
-    <>
-    <motion.div
-      style={cssVars}
-      className="bg-[var(--bg)] text-[var(--t)] transition-colors duration-300"
-      initial={{ opacity: 0, y: reduce ? 0 : 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-    >
-      {/* Hero entra sin delay para que se vea ágil */}
-      <motion.div
-        initial={{ opacity: 0, y: reduce ? 0 : 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-      >
-        <Hero data={data} />
-      </motion.div>
+    <div className="bg-white">
+      {/* ====== TU CONTENIDO EXISTENTE ======
+          Mantén aquí tus secciones: Header, Hero, Sections, Tabs, etc.
+          Ejemplos ilustrativos (borra si no aplican en tu proyecto):
+      */}
+      <main className="container mx-auto px-4 py-12">
+        {/* <Hero /> */}
+        {/* <Services /> */}
+        {/* <Testimonials /> */}
+        {/* <Faq /> */}
+      </main>
 
-      {/* Áreas */}
-      {data.sections.showAreas && (
-        <motion.section {...sectionMotionProps}>
-          <Areas items={data.specialties} />
-        </motion.section>
-      )}
-
-      {/* Servicios */}
-      {data.sections.showServices && (
-        <motion.section {...sectionMotionProps}>
-          <Services items={data.services} />
-        </motion.section>
-      )}
-
-      {/* FAQs */}
-      {data.sections.showFaqs && (
-        <motion.section {...sectionMotionProps}>
-          <Faq items={data.faqs} />
-        </motion.section>
-      )}
-
-      {/* Testimonios */}
-      {data.sections.showTestimonials && (
-        <motion.section {...sectionMotionProps}>
-          <Testimonials items={data.testimonials} />
-        </motion.section>
-      )}
-
-      {/* Footer fijo, sin animación de scroll para no romper UX al final */}
-      <Footer data={data} />
-
-      {/* CTA pegajoso: queda como lo tienes (animarlo aquí podría duplicar efectos con su propio componente) */}
-      <StickyCTA data={data} />
-    </motion.div>
-    </>
+      {/* <Footer />  ← aquí va tu HelpButton */}
+    </div>
   );
 }
