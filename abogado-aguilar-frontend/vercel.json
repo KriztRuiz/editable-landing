@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/help/(.*)",
-      "destination": "https://editable-landing-backend.onrender.com/api/help/$1"
+      "destination": "https://TU-SERVICIO.onrender.com/api/help/$1"
     }
   ]
 }
