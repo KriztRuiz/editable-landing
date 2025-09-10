@@ -68,7 +68,6 @@ export default function App({ siteId }: { siteId: string }) {
 
   return (
     <>
-    // Contenedor con fade-in y transición de colores por si cambian variables CSS del tema
     <motion.div
       style={cssVars}
       className="bg-[var(--bg)] text-[var(--t)] transition-colors duration-300"

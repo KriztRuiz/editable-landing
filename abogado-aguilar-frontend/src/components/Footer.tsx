@@ -40,6 +40,8 @@ export default function Footer({ data }: { data: SiteContent }) {
       initial="hidden"
       whileInView="show"
       viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      style={{ padding: "3rem 1rem" }}
     >
       <div className="container-xl">
         <motion.div
