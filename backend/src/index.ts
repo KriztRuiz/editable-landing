@@ -1,6 +1,7 @@
 // backend/src/index.ts
 import 'dotenv/config';
 import express from 'express';
+import type { CorsOptions } from 'cors';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -13,43 +14,63 @@ import helpRouter from './routes/help.js';
 const app = express();
 
 /**
- * Render está detrás de 1 proxy (ingress), así que esto ayuda
- * a que Express detecte bien la IP del cliente y a que el rate-limit funcione.
+ * Render está detrás de 1 proxy (ingress).
+ * Esto permite que Express y el rate-limit detecten bien la IP real.
  */
 app.set('trust proxy', 1);
 
-/**
- * CORS (colócalo ANTES de helmet)
- * Lee CORS_ORIGIN (separado por comas) desde las variables de entorno.
- * Ejemplo: CORS_ORIGIN="https://editable-landing.vercel.app,https://tus-previas.vercel.app"
+/* ===================== CORS (antes de helmet) ===================== */
+/** Cadenas separadas por coma y con comodines.
+ *  Ejemplo:
+ *  CORS_ORIGIN="https://editable-landing.vercel.app,https://editable-landing-*.vercel.app,https://editable-landing-*-*.vercel.app,http://localhost:4321,http://localhost:5173"
  */
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN ??
-  'https://editable-landing.vercel.app')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
+const RAW_ALLOWED = process.env.CORS_ORIGIN ?? 'https://editable-landing.vercel.app';
+const ALLOWED = RAW_ALLOWED.split(',').map(s => s.trim()).filter(Boolean);
 
-app.use(
-  cors({
-    origin(origin, cb) {
-      // Permite peticiones sin origen (health checks, SSR, curl)
-      if (!origin) return cb(null, true);
-      if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-      return cb(new Error(`CORS: origin not allowed: ${origin}`));
-    },
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: false,
-    maxAge: 86400, // cache del preflight
-  })
-);
+/** Activar logs con CORS_DEBUG=true en Render */
+const DEBUG = (process.env.CORS_DEBUG ?? 'false').toLowerCase() === 'true';
+function dbg(...args: any[]) {
+  if (DEBUG) console.log('[CORS]', ...args);
+}
+dbg('CORS_ORIGIN raw:', RAW_ALLOWED);
+dbg('ALLOWED parsed:', ALLOWED);
 
-// Responde preflights
-app.options('*', cors());
+/** Coincidencia con comodines: *.vercel.app, etc. */
+function matches(origin: string, pattern: string): boolean {
+  if (pattern === '*') return true;
+  const re = new RegExp(
+    '^' +
+      pattern
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // escapa regex
+        .replace(/\*/g, '.*') +               // comodín *
+    '$'
+  );
+  return re.test(origin);
+}
+
+const corsOptions: CorsOptions = {
+  origin(origin, cb) {
+    // Permite peticiones sin Origin (health checks, SSR, curl)
+    if (!origin) {
+      dbg('Sin Origin → allow');
+      return cb(null, true);
+    }
+    const rule = ALLOWED.find(p => matches(origin, p));
+    dbg('Origin:', origin, '→', rule ? `ALLOW (${rule})` : 'BLOCK');
+    return rule ? cb(null, true) : cb(new Error(`CORS: origin not allowed: ${origin}`));
+  },
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+  maxAge: 86400, // cache del preflight (24h)
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+/* =================== fin CORS =================== */
 
 /**
- * Helmet DESPUÉS de cors para no interferir con cabeceras cross-origin.
- * crossOriginResourcePolicy en 'cross-origin' evita bloquear recursos externos válidos.
+ * Helmet DESPUÉS de CORS para no interferir con cabeceras cross-origin.
  */
 app.use(
   helmet({
@@ -62,7 +83,7 @@ app.use(express.json({ limit: '1mb' }));
 
 // Rate limit (usar trustProxy:true porque estamos detrás de proxy)
 const limiter = rateLimit({
-  windowMs: 60 * 1000,
+  windowMs: 60_000,
   limit: 50,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
