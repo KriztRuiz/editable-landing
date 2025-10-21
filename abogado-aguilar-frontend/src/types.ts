@@ -16,7 +16,6 @@ export type SiteContent = {
   cta: { preferred: "whatsapp" | "call" | "agenda"; bookingUrl?: string; whatsappMessage?: string };
   seo: { title: string; description: string; cityKeywords: string[] };
   theme: { colors: { primary: string; secondary: string; background: string; text: string }; logoUrl?: string; coverUrl?: string };
-  legal: { privacyPolicy: string; disclaimers: string };
   settings: { layoutOption: 1|2|3|4|5|6; mainArea: string; targetCity: string };
   sections: { showAreas: boolean; showServices: boolean; showFaqs: boolean; showTestimonials: boolean; showMap: boolean };
 };

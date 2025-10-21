@@ -1,32 +1,17 @@
 ---
-// src/pages/index.astro
+// Página de inicio (`/`) para explicar el proyecto.  Aquí no se carga
+// contenido de un bufete específico; en su lugar se describe el propósito
+// de este proyecto de landing editable.
+
 import "../styles/global.css";
-import App from "../components/App";
 
-// ⚙️ Ajusta estos dos a tu caso:
-const siteId = "bufete-ejemplo"; // cámbialo si usas otro
-const SEO = {
-  title: "Abogado — Bufete Ejemplo",
-  description: "Asesoría legal profesional. Defensa, contratos y más.",
-};
-
-// Canonical absoluta (requiere `site` en astro.config.*)
-const canonical = Astro.site
-  ? new URL(Astro.url.pathname, Astro.site).href
-  : undefined;
-
-// Imagen para social (pon un archivo real en /public, p. ej. /og.jpg o /cover.jpg)
-const ogImage = Astro.site ? new URL("/og.jpg", Astro.site).href : undefined;
-
-// JSON-LD (mínimo y seguro; amplíalo con teléfono, dirección, etc.)
-const legalLD = {
-  "@context": "https://schema.org",
-  "@type": "LegalService",
-  "name": "Bufete Ejemplo",
-  ...(canonical ? { "url": canonical } : {}),
-};
+// Define un título y descripción generales para esta página de inicio.
+const title = "Editable Landing – Página de inicio";
+const description =
+  "Esta página de bienvenida explica el propósito del proyecto. Aquí no se " +
+  "muestra contenido de ningún bufete concreto; en su lugar, se ofrece una " +
+  "introducción sobre cómo funciona el sistema de landing editable.";
 ---
-
 <html lang="es">
   <head>
     <meta charset="utf-8" />
@@ -34,34 +19,51 @@ const legalLD = {
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-
-    <!-- SEO básico -->
-    <title>{SEO.title}</title>
-    <meta name="description" content={SEO.description} />
-    <meta name="robots" content="index,follow" />
-    {canonical && <link rel="canonical" href={canonical} />}
-    <meta name="theme-color" content="#ffffff" />
-
-    <!-- Open Graph (lo esencial) -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content={SEO.title} />
-    <meta property="og:description" content={SEO.description} />
-    {canonical && <meta property="og:url" content={canonical} />}
-    {ogImage && <meta property="og:image" content={ogImage} />}
-
-    <!-- Twitter Cards (summary con imagen grande) -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={SEO.title} />
-    <meta name="twitter:description" content={SEO.description} />
-    {ogImage && <meta name="twitter:image" content={ogImage} />}
-
-    <!-- JSON-LD -->
-    <script type="application/ld+json" set:html={JSON.stringify(legalLD)} />
-
-    <!-- Favicon -->
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
   </head>
-  <body class="bg-white">
-    <App siteId={siteId} client:load />
+  <body class="bg-white text-gray-900">
+    <main class="container mx-auto px-4 py-8">
+      <h1 class="text-3xl font-bold mb-4">{title}</h1>
+      <p class="mb-4">{description}</p>
+      <p class="mb-4">
+        Esta página inicial actúa como una introducción al proyecto. Su objetivo es
+        explicarte que este sistema de landing editable te permite crear y gestionar
+        el contenido de distintos sitios web sin necesidad de modificar código.
+      </p>
+      <p>
+        Desde aquí no se enlaza a ninguna página concreta de sitio; la intención es
+        solamente informar sobre la utilidad del proyecto. A continuación encontrarás
+        un botón para empezar a crear tu propia página y las instrucciones para
+        rellenar el formulario de administración.
+      </p>
+
+      <!-- Botón de llamada a la acción -->
+      <div class="mt-6">
+        <a
+          href="/signup"
+          class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded shadow"
+        >
+          Crear página con nosotros
+        </a>
+      </div>
+
+      <!-- Instrucciones para rellenar el formulario de creación -->
+      <div class="mt-8 space-y-2">
+        <h2 class="text-2xl font-semibold">¿Cómo crear tu página?</h2>
+        <ol class="list-decimal list-inside space-y-1">
+          <li>Haz clic en el botón “Crear página con nosotros” para ir al formulario de registro.</li>
+          <li>Elige un identificador único para tu sitio (por ejemplo, <em>bufete-abogado</em>). Este identificador se utilizará en la URL pública de tu página.</li>
+          <li>Introduce tu nombre completo y un correo electrónico de contacto. Estos datos se utilizarán para el perfil público y para que puedas acceder al panel de administración.</li>
+          <li>Establece una contraseña segura. Con ella podrás volver a acceder al panel y editar el contenido de tu sitio.</li>
+          <li>Opcionalmente, añade un titular y una descripción breve para tu página. Podrás ajustar otros campos más adelante desde el panel de administración.</li>
+          <li>Envía el formulario. Si todo es correcto, se generará automáticamente el contenido base de tu nuevo sitio y podrás acceder al panel de administración para personalizarlo.</li>
+        </ol>
+        <p class="mt-4">
+          Una vez registrado, tu página estará disponible en la ruta que corresponde al identificador que eligiste (por ejemplo, <code>/bufete-abogado</code>). Desde el panel de administración podrás modificar y ampliar la información cuando quieras.
+        </p>
+      </div>
+
+    </main>
   </body>
 </html>

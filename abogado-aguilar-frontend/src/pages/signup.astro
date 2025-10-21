@@ -1,0 +1,189 @@
+---
+// Página de registro para crear un nuevo sitio y usuario de administración.
+// Aquí el visitante podrá proporcionar un identificador para su nueva página,
+// junto con su información de contacto y unas credenciales. El formulario
+// enviará los datos al backend mediante una solicitud HTTP POST. Se asume
+// que el backend expone un endpoint `/api/auth/signup` que acepta un cuerpo
+// JSON con `siteId`, `fullName`, `email`, `password`, `headline` y
+// `description` para crear el usuario y el contenido base.
+
+import "../styles/global.css";
+
+const title = "Registro – Crear nueva página";
+
+---
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+  </head>
+  <body class="bg-white text-gray-900">
+    <main class="container mx-auto px-4 py-8 max-w-xl">
+      <h1 class="text-3xl font-bold mb-4">Crea tu página</h1>
+      <p class="mb-6">
+        Para crear una nueva página necesitas elegir un identificador único y proporcionar
+        tus datos de contacto. El identificador formará parte de la URL pública de tu sitio.
+      </p>
+      <form id="signup-form" class="space-y-4">
+        <div>
+          <label for="siteId" class="block font-medium mb-1">Identificador del sitio</label>
+          <input
+            id="siteId"
+            name="siteId"
+            type="text"
+            required
+            pattern="^[A-Za-z0-9-]+$"
+            title="Utiliza letras, números o guiones"
+            placeholder="Ej.: bufete-abogado (solo letras, números y guiones)"
+            class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label for="fullName" class="block font-medium mb-1">Nombre completo</label>
+          <input
+            id="fullName"
+            name="fullName"
+            type="text"
+            required
+            placeholder="Nombre y apellidos"
+            class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label for="email" class="block font-medium mb-1">Correo electrónico</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            placeholder="ejemplo@dominio.com"
+            class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label for="password" class="block font-medium mb-1">Contraseña</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            minlength="6"
+            required
+            placeholder="Al menos 6 caracteres"
+            class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label for="headline" class="block font-medium mb-1">Titular (opcional)</label>
+          <input
+            id="headline"
+            name="headline"
+            type="text"
+            placeholder="Frase corta opcional"
+            class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label for="description" class="block font-medium mb-1">Descripción breve (opcional)</label>
+          <textarea
+            id="description"
+            name="description"
+            rows="3"
+            class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Descripción breve de tu página (opcional)"></textarea>
+        </div>
+        <button
+          type="submit"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+        >
+          Crear página
+        </button>
+      </form>
+      <p id="signup-message" class="mt-4 text-sm"></p>
+    </main>
+    <script>
+      // Maneja el envío del formulario de registro. Se envían los datos
+      // al endpoint `/api/auth/signup` mediante POST. Si la respuesta
+      // indica éxito, se muestra un mensaje y se invita al usuario a
+      // iniciar sesión en el panel de administración. En caso de error,
+      // se muestran los detalles devueltos por el backend.
+      document.addEventListener('DOMContentLoaded', () => {
+        // Obtén las referencias a los elementos del DOM.  Se realiza un cast
+        // explícito para que TypeScript sepa que son del tipo correcto. Si
+        // alguno de ellos no existe, aborta la inicialización.
+        const form = document.getElementById('signup-form') as HTMLFormElement | null;
+        const messageEl = document.getElementById('signup-message') as HTMLElement | null;
+        if (!form || !messageEl) {
+          return;
+        }
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          messageEl.textContent = '';
+          // Referencia al botón de envío para bloquearlo en caso de error
+          const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+          // Validación manual: comprueba que los campos obligatorios cumplen su patrón
+          const inputs: Array<{ el: HTMLInputElement | HTMLTextAreaElement | null; name: string }> = [
+            { el: form.querySelector('#siteId') as HTMLInputElement, name: 'Identificador del sitio' },
+            { el: form.querySelector('#fullName') as HTMLInputElement, name: 'Nombre completo' },
+            { el: form.querySelector('#email') as HTMLInputElement, name: 'Correo electrónico' },
+            { el: form.querySelector('#password') as HTMLInputElement, name: 'Contraseña' },
+          ];
+          for (const field of inputs) {
+            if (!field.el || !field.el.checkValidity()) {
+              // Campo inválido: muestra error y bloquea el botón durante 5 segundos
+              messageEl.classList.remove('text-green-600');
+              messageEl.classList.add('text-red-600');
+              messageEl.textContent = `El campo ${field.name} tiene un formato incorrecto, corrígelo antes de continuar.`;
+              if (submitBtn) {
+                submitBtn.disabled = true;
+                // Vuelve a habilitar después de 5 segundos
+                setTimeout(() => {
+                  submitBtn.disabled = false;
+                }, 5000);
+              }
+              // Invoca el validador nativo para mostrar los mensajes por campo
+              (field.el as any).reportValidity?.();
+              return;
+            }
+          }
+          // Si todas las validaciones pasan, prepara el payload y envía la solicitud
+          const formData = new FormData(form);
+          const payload = {
+            siteId: formData.get('siteId'),
+            fullName: formData.get('fullName'),
+            email: formData.get('email'),
+            password: formData.get('password'),
+            headline: formData.get('headline'),
+            description: formData.get('description'),
+          };
+          try {
+            const response = await fetch('/api/auth/signup', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(payload),
+            });
+            if (response.ok) {
+              messageEl.classList.remove('text-red-600');
+              messageEl.classList.add('text-green-600');
+              messageEl.textContent =
+                'Registro exitoso. Ahora puedes iniciar sesión en /admin para gestionar tu página.';
+              // Reinicia el formulario después de un registro exitoso.
+              form.reset();
+            } else {
+              const errorText = await response.text();
+              messageEl.classList.remove('text-green-600');
+              messageEl.classList.add('text-red-600');
+              messageEl.textContent = 'Error al registrar: ' + errorText;
+            }
+          } catch (err) {
+            messageEl.classList.remove('text-green-600');
+            messageEl.classList.add('text-red-600');
+            messageEl.textContent = 'Error de conexión con el servidor. Inténtalo más tarde.';
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

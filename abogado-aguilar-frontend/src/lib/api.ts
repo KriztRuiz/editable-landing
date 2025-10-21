@@ -1,8 +1,14 @@
 import type { SiteContent } from "../types";
 import type { CSSProperties } from "react";
 
-// Base del API: en dev suele ir vacía (proxy de Vite); en prod puedes setear tu dominio.
-const API_BASE = (import.meta.env.PUBLIC_API_BASE ?? "").replace(/\/$/, "");
+// Base del API: usa PUBLIC_API_BASE si está definida, luego process.env.PUBLIC_API_BASE,
+// y por último http://localhost:4000 como valor por defecto.
+const API_BASE = (
+  import.meta.env.PUBLIC_API_BASE ??
+  (typeof process !== "undefined" ? process.env.PUBLIC_API_BASE : undefined) ??
+  "http://localhost:4000"
+).replace(/\/$/, "");
+
 
 export async function fetchContent(siteId: string): Promise<SiteContent> {
   const path = `/api/content/public/${encodeURIComponent(siteId)}`;

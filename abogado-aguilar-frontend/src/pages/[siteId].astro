@@ -1,0 +1,31 @@
+---
+export const prerender = false;
+// Página dinámica para sitios individuales…
+import "../styles/global.css";
+import { fetchContent } from "../lib/api";
+
+const { siteId } = Astro.params;
+const id = siteId as string;
+
+const content = await fetchContent(id);
+
+const title = content?.profile?.fullName ?? id;
+const headline = content?.profile?.headline ?? "";
+const description = content?.seo?.description ?? "";
+---
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body class="bg-white text-gray-900">
+    <main class="container mx-auto px-4 py-8">
+      <h1 class="text-3xl font-bold mb-4">{title}</h1>
+      {headline && <p class="text-xl mb-2">{headline}</p>}
+      {description && <p class="mb-4">{description}</p>}
+      {/* Aquí puedes incluir tus componentes (Áreas, Servicios, FAQ…) pasando datos desde `content` */}
+    </main>
+  </body>
+</html>
