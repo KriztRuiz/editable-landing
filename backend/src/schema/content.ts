@@ -59,11 +59,6 @@ export const contentSchema = z.object({
     logoUrl: z.string().url().optional().default("https://cdn.suitsupply.com/image/upload/fl_progressive,f_auto,q_auto,w_1440/suitsupply/campaigns/ss24/formal-wedding-guide/formalWeddingAttire-d-08.jpg"),
     coverUrl: z.string().url().optional()
   }),
-  especialidades: z.array(z.object({
-    name: z.string(),
-    description: z.string().optional(),
-    icon: z.string().optional()
-  })).default([]),
   settings: z.object({
     layoutOption: z.union([z.literal(1),z.literal(2),z.literal(3),z.literal(4),z.literal(5),z.literal(6)]).default(1),
     mainArea: z.string().default("general"),

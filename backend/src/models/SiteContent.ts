@@ -23,7 +23,6 @@ const SiteContentSchema = new Schema<SiteContent>(
     cta: { preferred: String, bookingUrl: String, whatsappMessage: String },
     seo: { title: String, description: String, cityKeywords: [String] },
     theme: { colors: { primary: String, secondary: String, background: String, text: String }, logoUrl: String },
-    specialties: [{ name: String, description: String, icon: String }],
     settings: { layoutOption: Number, mainArea: String, targetCity: String },
     sections: { showAreas: Boolean, showServices: Boolean, showFaqs: Boolean, showTestimonials: Boolean, showMap: Boolean }
   },

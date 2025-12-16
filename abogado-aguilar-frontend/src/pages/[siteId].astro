@@ -3,11 +3,19 @@ export const prerender = false;
 // Página dinámica para sitios individuales…
 import "../styles/global.css";
 import { fetchContent } from "../lib/api";
+import type { SiteContent } from "../types";
 
 const { siteId } = Astro.params;
 const id = siteId as string;
 
-const content = await fetchContent(id);
+// Intentamos obtener el contenido; si falla, redirigimos a /404
+let content: SiteContent | null = null;
+try {
+  content = await fetchContent(id);
+} catch (err) {
+  // Redirige a la página 404.astro (si existe)
+  return Astro.redirect('/404');
+}
 
 const title = content?.profile?.fullName ?? id;
 const headline = content?.profile?.headline ?? "";
@@ -19,6 +27,7 @@ const description = content?.seo?.description ?? "";
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/x-icon" />
   </head>
   <body class="bg-white text-gray-900">
     <main class="container mx-auto px-4 py-8">

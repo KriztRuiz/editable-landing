@@ -1,0 +1,55 @@
+---
+export const prerender = true;
+import "../styles/global.css";
+import { motion } from 'framer-motion';
+---
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>404 – Página no encontrada</title>
+    <meta name="description" content="La página solicitada no existe" />
+    <link rel="icon" href="/favicon.svg" type="image/x-icon" />
+  </head>
+  <body class="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-yellow-100 text-orange-800">
+    <div class="text-center px-4">
+      <motion.h1
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="text-6xl font-extrabold mb-2"
+        client:load
+      >
+        404
+      </motion.h1>
+      <motion.h2
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.6 }}
+        className="text-2xl font-semibold mb-4"
+        client:load
+      >
+        Página no encontrada
+      </motion.h2>
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4, duration: 0.6 }}
+        className="mb-6 max-w-md mx-auto"
+        client:load
+      >
+        Lo sentimos, la página que buscas no existe o ha sido movida. Te invitamos a volver a la página principal.
+      </motion.p>
+      <motion.a
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6, duration: 0.6 }}
+        href="/"
+        className="inline-block px-6 py-3 bg-orange-600 text-white rounded-lg shadow-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+        client:load
+      >
+        Volver al inicio
+      </motion.a>
+    </div>
+  </body>
+</html>

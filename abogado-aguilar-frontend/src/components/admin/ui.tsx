@@ -1,6 +1,4 @@
-import {
-  type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes
-} from "react";
+import { type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes} from "react";
 
 export function H2({ children }: { children: ReactNode }) {
   return <h2 className="text-xl font-semibold mb-3">{children}</h2>;

@@ -9,7 +9,6 @@ const API_BASE = (
   "http://localhost:4000"
 ).replace(/\/$/, "");
 
-
 export async function fetchContent(siteId: string): Promise<SiteContent> {
   const path = `/api/content/public/${encodeURIComponent(siteId)}`;
   const url = API_BASE ? `${API_BASE}${path}` : path;
