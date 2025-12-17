@@ -1,16 +1,15 @@
 ---
-// Página de registro para crear un nuevo sitio y usuario de administración.
-// Aquí el visitante podrá proporcionar un identificador para su nueva página,
-// junto con su información de contacto y unas credenciales. El formulario
-// enviará los datos al backend mediante una solicitud HTTP POST. Se asume
-// que el backend expone un endpoint `/api/auth/signup` que acepta un cuerpo
-// JSON con `siteId`, `fullName`, `email`, `password`, `headline` y
-// `description` para crear el usuario y el contenido base.
+ // Página de registro para crear un nuevo sitio y usuario de administración.
+ // Aquí el visitante podrá proporcionar un identificador para su nueva página,
+ // junto con su información de contacto y unas credenciales. El formulario
+ // enviará los datos al backend mediante una solicitud HTTP POST. Se asume
+ // que el backend expone un endpoint `/api/auth/signup` que acepta un cuerpo
+ // JSON con `siteId`, `fullName`, `email`, `password`, `headline` y
+ // `description` para crear el usuario y el contenido base.
 
-import "../styles/global.css";
+ import "../styles/global.css";
 
-const title = "Registro – Crear nueva página";
-
+ const title = "Registro – Crear nueva página";
 ---
 <html lang="es">
   <head>
@@ -102,51 +101,41 @@ const title = "Registro – Crear nueva página";
       <p id="signup-message" class="mt-4 text-sm"></p>
     </main>
     <script>
-      // Maneja el envío del formulario de registro. Se envían los datos
-      // al endpoint `/api/auth/signup` mediante POST. Si la respuesta
-      // indica éxito, se muestra un mensaje y se invita al usuario a
-      // iniciar sesión en el panel de administración. En caso de error,
-      // se muestran los detalles devueltos por el backend.
       document.addEventListener('DOMContentLoaded', () => {
-        // Obtén las referencias a los elementos del DOM.  Se realiza un cast
-        // explícito para que TypeScript sepa que son del tipo correcto. Si
-        // alguno de ellos no existe, aborta la inicialización.
+        // Asegura que 'form' sea un HTMLFormElement
         const form = document.getElementById('signup-form') as HTMLFormElement | null;
         const messageEl = document.getElementById('signup-message') as HTMLElement | null;
-        if (!form || !messageEl) {
-          return;
-        }
+        if (!form || !messageEl) return;
+
         form.addEventListener('submit', async (event) => {
           event.preventDefault();
           messageEl.textContent = '';
-          // Referencia al botón de envío para bloquearlo en caso de error
-          const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-          // Validación manual: comprueba que los campos obligatorios cumplen su patrón
-          const inputs: Array<{ el: HTMLInputElement | HTMLTextAreaElement | null; name: string }> = [
-            { el: form.querySelector('#siteId') as HTMLInputElement, name: 'Identificador del sitio' },
-            { el: form.querySelector('#fullName') as HTMLInputElement, name: 'Nombre completo' },
-            { el: form.querySelector('#email') as HTMLInputElement, name: 'Correo electrónico' },
-            { el: form.querySelector('#password') as HTMLInputElement, name: 'Contraseña' },
+
+          // Valida los campos obligatorios con tipos específicos
+          const inputs: Array<{ el: HTMLInputElement | HTMLTextAreaElement; name: string }> = [
+            { el: form.querySelector<HTMLInputElement>('#siteId')!, name: 'Identificador del sitio' },
+            { el: form.querySelector<HTMLInputElement>('#fullName')!, name: 'Nombre completo' },
+            { el: form.querySelector<HTMLInputElement>('#email')!, name: 'Correo electrónico' },
+            { el: form.querySelector<HTMLInputElement>('#password')!, name: 'Contraseña' },
           ];
+
+          const submitBtn = form.querySelector<HTMLButtonElement>('button[type="submit"]');
           for (const field of inputs) {
             if (!field.el || !field.el.checkValidity()) {
-              // Campo inválido: muestra error y bloquea el botón durante 5 segundos
               messageEl.classList.remove('text-green-600');
               messageEl.classList.add('text-red-600');
               messageEl.textContent = `El campo ${field.name} tiene un formato incorrecto, corrígelo antes de continuar.`;
               if (submitBtn) {
                 submitBtn.disabled = true;
-                // Vuelve a habilitar después de 5 segundos
-                setTimeout(() => {
-                  submitBtn.disabled = false;
-                }, 5000);
+                setTimeout(() => { submitBtn.disabled = false; }, 5000);
               }
-              // Invoca el validador nativo para mostrar los mensajes por campo
+              // Llama al validador nativo para mostrar el mensaje en el campo
               (field.el as any).reportValidity?.();
               return;
             }
           }
-          // Si todas las validaciones pasan, prepara el payload y envía la solicitud
+
+          // Prepara el payload
           const formData = new FormData(form);
           const payload = {
             siteId: formData.get('siteId'),
@@ -156,9 +145,9 @@ const title = "Registro – Crear nueva página";
             headline: formData.get('headline'),
             description: formData.get('description'),
           };
+
           try {
             const API_BASE = import.meta.env.PUBLIC_API_BASE ?? "";
-
             const response = await fetch(`${API_BASE}/api/auth/signup`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -168,17 +157,18 @@ const title = "Registro – Crear nueva página";
             if (response.ok) {
               messageEl.classList.remove('text-red-600');
               messageEl.classList.add('text-green-600');
-              messageEl.textContent =
-                'Registro exitoso. Ahora puedes iniciar sesión en /admin para gestionar tu página.';
-              // Reinicia el formulario después de un registro exitoso.
+              messageEl.textContent = 'Registro exitoso. Redirigiendo a /admin...';
               form.reset();
+              setTimeout(() => {
+                window.location.href = '/admin';
+              }, 1000);
             } else {
               const errorText = await response.text();
               messageEl.classList.remove('text-green-600');
               messageEl.classList.add('text-red-600');
               messageEl.textContent = 'Error al registrar: ' + errorText;
             }
-          } catch (err) {
+          } catch {
             messageEl.classList.remove('text-green-600');
             messageEl.classList.add('text-red-600');
             messageEl.textContent = 'Error de conexión con el servidor. Inténtalo más tarde.';

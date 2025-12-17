@@ -41,15 +41,18 @@ authRouter.post("/signup", async (req, res) => {
   const parse = contentSchema.safeParse({
     siteId,
     profile: { fullName, headline, intro: description },
-    contact: { phone: "", whatsapp: "", email, address: "", mapUrl: "" },
+    contact: { phone: "", whatsapp: "", email, address: "", mapUrl: undefined },
     seo: { title: fullName, description: description ?? "", cityKeywords: [] },
+    cta: { preferred: "whatsapp" },                   // valor por defecto
+    theme: { colors: { primary: "#0f172a", secondary: "#1e293b", background: "#ffffff", text: "#0b0b0b" } },
+    settings: { layoutOption: 1, mainArea: "general", targetCity: "" },
   });
+
   if (!parse.success) {
     return res.status(400).json({ error: "Invalid content", details: parse.error.flatten() });
   }
 
   // Guarda el contenido base
   await SiteContentModel.create(parse.data);
-
   return res.status(201).json({ message: "Site and admin created successfully" });
 });
