@@ -9,7 +9,7 @@ export const POST: APIRoute = async ({ request }) => {
   const API_BASE = import.meta.env.PUBLIC_API_BASE ?? "http://localhost:4000";
   const body = await request.text();
 
-  const resp = await fetch(`${API_BASE}/api/signup`, {
+  const resp = await fetch(`${API_BASE}/api/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body,
