@@ -1,5 +1,9 @@
 import type { APIRoute } from "astro";
 
+export const GET: APIRoute = () => {
+  return new Response("Método no permitido", { status: 405 });
+};
+
 // proxy de sign‑up hacia tu backend
 export const POST: APIRoute = async ({ request }) => {
   const API_BASE = import.meta.env.PUBLIC_API_BASE ?? "http://localhost:4000";
