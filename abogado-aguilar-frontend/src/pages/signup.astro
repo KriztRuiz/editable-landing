@@ -157,13 +157,14 @@ const title = "Registro – Crear nueva página";
             description: formData.get('description'),
           };
           try {
-            const response = await fetch('/api/signup', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
+            const API_BASE = import.meta.env.PUBLIC_API_BASE ?? "";
+
+            const response = await fetch(`${API_BASE}/api/auth/signup`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload),
             });
+
             if (response.ok) {
               messageEl.classList.remove('text-red-600');
               messageEl.classList.add('text-green-600');
