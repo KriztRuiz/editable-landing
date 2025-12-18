@@ -159,9 +159,10 @@
               messageEl.classList.add('text-green-600');
               messageEl.textContent = 'Registro exitoso. Redirigiendo a /admin...';
               form.reset();
+              // Redirige a la página de inicio de sesión del panel de administración
               setTimeout(() => {
                 window.location.href = '/admin';
-              }, 1000);
+              }, 1000); // retrasa la redirección 1 s para mostrar el mensaje
             } else {
               const errorText = await response.text();
               messageEl.classList.remove('text-green-600');
