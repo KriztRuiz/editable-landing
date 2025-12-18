@@ -155,14 +155,34 @@
             });
 
             if (response.ok) {
+              // Autologin: intenta iniciar sesión con las mismas credenciales
+              try {
+                const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: payload.email, password: payload.password }),
+                });
+                if (loginRes.ok) {
+                  const { token } = await loginRes.json();
+                  localStorage.setItem('authToken', token);
+                } else {
+                  // Si el login fallara, podrías decidir no almacenar el token y mostrar un aviso
+                }
+              } catch (err) {
+                // Manejo de error opcional del login
+              }
+
+              // Muestra mensaje y prepara la redirección
               messageEl.classList.remove('text-red-600');
               messageEl.classList.add('text-green-600');
-              messageEl.textContent = 'Registro exitoso. Redirigiendo a /admin...';
+              messageEl.textContent = 'Registro exitoso. Redirigiendo a tu panel...';
+
               form.reset();
-              // Redirige a la página de inicio de sesión del panel de administración
+              const newSiteId = payload.siteId;
+
               setTimeout(() => {
-                window.location.href = '/admin';
-              }, 1000); // retrasa la redirección 1 s para mostrar el mensaje
+                window.location.href = `/admin?site=${encodeURIComponent(String(newSiteId))}`;
+              }, 2000); // 2 segundos para que el usuario alcance a ver el mensaje
             } else {
               const errorText = await response.text();
               messageEl.classList.remove('text-green-600');

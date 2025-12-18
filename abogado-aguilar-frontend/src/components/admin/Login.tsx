@@ -3,8 +3,8 @@ import { apiLogin } from "./api";
 import { Btn, Field, Input } from "./ui";
 
 export default function Login({ onLogin }: { onLogin: (token: string) => void }) {
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("CambiaEsto123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
