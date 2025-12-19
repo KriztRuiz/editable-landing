@@ -39,14 +39,45 @@ authRouter.post("/signup", async (req, res) => {
 
   // Construye el contenido con valores por defecto utilizando zod
   const parse = contentSchema.safeParse({
-    siteId,
-    profile: { fullName, headline, intro: description },
-    contact: { phone: "", whatsapp: "", email, address: "", mapUrl: undefined },
-    seo: { title: fullName, description: description ?? "", cityKeywords: [] },
-    cta: { preferred: "whatsapp" },                   // valor por defecto
-    theme: { colors: { primary: "#0f172a", secondary: "#1e293b", background: "#ffffff", text: "#0b0b0b" } },
-    settings: { layoutOption: 1, mainArea: "general", targetCity: "" },
-  });
+  siteId,
+  profile: {
+    fullName,            // nombre ingresado
+    headline,            // titular opcional
+    intro: description,  // descripción opcional
+    licenseId: "",       // en blanco: se editará después en el panel
+    photoUrl: "",        // idem
+  },
+  contact: {
+    phone: "",
+    whatsapp: "",
+    email,               // el mismo email de registro
+    address: "",
+    mapUrl: undefined,
+  },
+  specialties: [],        // listas vacías en vez de copiar del ejemplo
+  services: [],
+  faqs: [],
+  testimonials: [],
+  schedule: [],
+  cta: {
+    preferred: "whatsapp",
+    bookingUrl: "",
+    whatsappMessage: "",
+  },
+  seo: {
+    title: fullName,
+    description: description ?? "",
+    cityKeywords: [],
+  },
+  theme: {
+    colors: { primary: "#0f172a", secondary: "#1e293b", background: "#ffffff", text: "#0b0b0b" },
+    logoUrl: "",
+    coverUrl: "",
+  },
+  settings: { layoutOption: 1, mainArea: "general", targetCity: "" },
+  sections: { showAreas: true, showServices: true, showFaqs: true, showTestimonials: true, showMap: true },
+});
+
 
   if (!parse.success) {
     return res.status(400).json({ error: "Invalid content", details: parse.error.flatten() });
