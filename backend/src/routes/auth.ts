@@ -45,7 +45,7 @@ authRouter.post("/signup", async (req, res) => {
     headline,            // titular opcional
     intro: description,  // descripción opcional
     licenseId: "",       // en blanco: se editará después en el panel
-    photoUrl: "",        // idem
+    photoUrl: undefined,        // idem
   },
   contact: {
     phone: "",
@@ -61,7 +61,7 @@ authRouter.post("/signup", async (req, res) => {
   schedule: [],
   cta: {
     preferred: "whatsapp",
-    bookingUrl: "",
+    bookingUrl: undefined,
     whatsappMessage: "",
   },
   seo: {
@@ -71,8 +71,8 @@ authRouter.post("/signup", async (req, res) => {
   },
   theme: {
     colors: { primary: "#0f172a", secondary: "#1e293b", background: "#ffffff", text: "#0b0b0b" },
-    logoUrl: "",
-    coverUrl: "",
+    logoUrl: undefined,
+    coverUrl: undefined,
   },
   settings: { layoutOption: 1, mainArea: "general", targetCity: "" },
   sections: { showAreas: true, showServices: true, showFaqs: true, showTestimonials: true, showMap: true },
