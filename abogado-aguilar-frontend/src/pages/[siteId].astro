@@ -5,35 +5,55 @@ import "../styles/global.css";
 import { fetchContent, buildWhatsAppUrl } from "../lib/api";
 import type { SiteContent } from "../types";
 
-const raw = Astro.params.siteId;
-const siteId = String(raw ?? "").trim();
+const { siteId } = Astro.params;
+const id = String(siteId ?? "");
 
-// Debug opcional: /ejemplo2?debug=1
-const showDebug = import.meta.env.DEV || Astro.url.searchParams.get("debug") === "1";
+// Evita que se cachee el HTML SSR en el edge/CDN (si algún día agregas caching)
+Astro.response.headers.set("Cache-Control", "no-store");
 
-let content: SiteContent | null = null;
+const url = new URL(Astro.request.url);
+const debug = url.searchParams.get("debug") === "1";
 
+let content: SiteContent;
 try {
-  if (!siteId) throw new Error("siteId vacío");
-  content = await fetchContent(siteId);
-} catch (err) {
-  // 404 real (sin redireccionar)
-  Astro.response.status = 404;
-  Astro.response.statusText = "Not Found";
-  console.error("[siteId].astro fetchContent error:", err);
+  content = await fetchContent(id);
+} catch (e) {
+  console.error("[siteId] fetchContent error:", e);
+  return Astro.redirect("/404");
 }
 
-// CSS vars (string) — para no depender de React/CSSProperties
-const cssVars = content?.theme?.colors
-  ? `--p:${content.theme.colors.primary};--s:${content.theme.colors.secondary ?? content.theme.colors.primary};--bg:${content.theme.colors.background};--t:${content.theme.colors.text};`
-  : `--p:#0f172a;--s:#1e293b;--bg:#ffffff;--t:#0b0b0b;`;
+if (!content || Object.keys(content as any).length === 0) {
+  return Astro.redirect("/404");
+}
 
-const title = content?.seo?.title || content?.profile?.fullName || siteId || "Sitio";
+const title = content?.seo?.title || content?.profile?.fullName || id;
 const description = content?.seo?.description || "";
 
-const whatsappBase = content?.contact?.whatsapp || content?.contact?.phone || "";
-const whatsappUrl =
-  whatsappBase ? buildWhatsAppUrl(whatsappBase, content?.cta?.whatsappMessage) : "";
+const colors = content?.theme?.colors || {
+  primary: "#0f172a",
+  secondary: "#1e293b",
+  background: "#ffffff",
+  text: "#0b0b0b",
+};
+
+const cssVars =
+  `--p:${colors.primary};--s:${colors.secondary || colors.primary};--bg:${colors.background};--t:${colors.text};`;
+
+const logo = content?.profile?.photoUrl || content?.theme?.logoUrl || "";
+const preferred = content?.cta?.preferred || "whatsapp";
+
+const whatsappHref =
+  content?.contact?.whatsapp
+    ? buildWhatsAppUrl(
+        content.contact.whatsapp,
+        content?.cta?.whatsappMessage || `Hola, vengo del sitio ${title}`
+      )
+    : "";
+
+const phoneHref =
+  content?.contact?.phone ? `tel:${content.contact.phone}` : "";
+
+const bookingHref = content?.cta?.bookingUrl || "";
 ---
 
 <html lang="es">
@@ -41,96 +61,223 @@ const whatsappUrl =
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
-    {description && <meta name="description" content={description} />}
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/x-icon" />
   </head>
 
-  <body style={cssVars}>
-    <!-- ✅ CSS puro: SIN { } y SIN backticks -->
-    <style is:global>
-      body { background: var(--bg); color: var(--t); margin: 0; font-family: system-ui, sans-serif; }
-      main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
-      .card { border: 1px solid rgba(0,0,0,.08); border-radius: 1rem; padding: 1rem; background: #fff; }
-      .muted { color: rgba(0,0,0,.55); }
-      .btn {
-        display:inline-flex; align-items:center; justify-content:center;
-        padding:.75rem 1rem; border-radius: .9rem;
-        background: var(--p); color: #fff; text-decoration:none; font-weight: 700;
-      }
-      .grid { display:grid; gap: 1rem; }
-      @media (min-width: 768px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
-      img.logo { width: 80px; height: 80px; border-radius: 1rem; object-fit: cover; }
-    </style>
+  <body style={cssVars} class="min-h-screen bg-[var(--bg)] text-[var(--t)]">
+    <main class="mx-auto max-w-5xl px-4 py-8">
+      {/* HEADER */}
+      <header class="flex items-center gap-4 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+        {logo ? (
+          <img
+            src={logo}
+            alt={`Logo de ${title}`}
+            width="72"
+            height="72"
+            loading="lazy"
+            class="h-[72px] w-[72px] rounded-full object-cover"
+          />
+        ) : (
+          <div class="h-[72px] w-[72px] rounded-full bg-black/10" />
+        )}
 
-    <main>
-      {!content ? (
-        <section class="card">
-          <h1 style="margin:0; font-size: 1.5rem;">Sitio no encontrado</h1>
-          <p class="muted" style="margin-top:.5rem;">
-            No existe contenido para <code>{siteId}</code> o el backend no respondió.
+        <div class="flex-1">
+          <h1 class="text-3xl font-bold">{content.profile.fullName}</h1>
+          {content.profile.headline ? (
+            <p class="mt-1 text-black/60">{content.profile.headline}</p>
+          ) : null}
+        </div>
+
+        {/* CTA */}
+        <div class="flex flex-col gap-2">
+          {preferred === "whatsapp" && whatsappHref ? (
+            <a
+              class="rounded-xl px-4 py-2 text-center font-semibold text-white"
+              style="background:var(--p)"
+              href={whatsappHref}
+              target="_blank"
+              rel="noreferrer"
+            >
+              WhatsApp
+            </a>
+          ) : null}
+
+          {preferred === "call" && phoneHref ? (
+            <a
+              class="rounded-xl px-4 py-2 text-center font-semibold text-white"
+              style="background:var(--p)"
+              href={phoneHref}
+            >
+              Llamar
+            </a>
+          ) : null}
+
+          {preferred === "agenda" && bookingHref ? (
+            <a
+              class="rounded-xl px-4 py-2 text-center font-semibold text-white"
+              style="background:var(--p)"
+              href={bookingHref}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Agendar
+            </a>
+          ) : null}
+        </div>
+      </header>
+
+      {/* TOP GRID */}
+      <section class="mt-6 grid gap-4 md:grid-cols-2">
+        <div class="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <h2 class="text-lg font-semibold">Acerca de</h2>
+          <p class="mt-3 text-black/70">
+            {content.profile.intro?.trim() ? content.profile.intro : "—"}
           </p>
+        </div>
 
-          {showDebug && (
-            <details style="margin-top:1rem;">
-              <summary style="cursor:pointer; font-weight:700;">Debug</summary>
-              <pre style="margin-top:.75rem; overflow:auto; font-size:.8rem;">
-{JSON.stringify(
-  { siteId, PUBLIC_API_BASE: import.meta.env.PUBLIC_API_BASE },
-  null,
-  2
-)}
-              </pre>
-            </details>
+        <div class="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <h2 class="text-lg font-semibold">Contacto</h2>
+          <ul class="mt-3 space-y-2 text-black/70">
+            {content.contact.email ? (
+              <li>
+                <a class="underline" href={`mailto:${content.contact.email}`}>
+                  {content.contact.email}
+                </a>
+              </li>
+            ) : null}
+
+            {content.contact.phone ? (
+              <li>
+                <a class="underline" href={phoneHref}>
+                  {content.contact.phone}
+                </a>
+              </li>
+            ) : null}
+
+            {content.contact.whatsapp ? (
+              <li>
+                <a class="underline" href={whatsappHref} target="_blank" rel="noreferrer">
+                  {content.contact.whatsapp}
+                </a>
+              </li>
+            ) : null}
+
+            {content.contact.address ? <li>{content.contact.address}</li> : null}
+          </ul>
+        </div>
+      </section>
+
+      {/* ESPECIALIDADES */}
+      {content.sections?.showAreas ? (
+        <section class="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <h2 class="text-lg font-semibold">Especialidades</h2>
+
+          {content.specialties?.length ? (
+            <ul class="mt-3 grid gap-3 md:grid-cols-2">
+              {content.specialties.map((s) => (
+                <li class="rounded-xl border border-black/10 bg-white p-4">
+                  <div class="font-semibold">{s.name}</div>
+                  {s.description ? <div class="mt-1 text-black/70">{s.description}</div> : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="mt-3 text-black/60">Sin registros.</p>
           )}
         </section>
-      ) : (
-        <>
-          <header class="card" style="display:flex; gap:1rem; align-items:center;">
-            {content.theme?.logoUrl && (
-              <img class="logo" src={content.theme.logoUrl} alt={`Logo de ${title}`} loading="lazy" />
-            )}
+      ) : null}
 
-            <div style="flex:1;">
-              <h1 style="margin:0; font-size:1.8rem;">{content.profile?.fullName ?? title}</h1>
-              {content.profile?.headline && <p class="muted" style="margin:.25rem 0 0;">{content.profile.headline}</p>}
-            </div>
+      {/* SERVICIOS */}
+      {content.sections?.showServices ? (
+        <section class="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <h2 class="text-lg font-semibold">Servicios</h2>
 
-            {content.cta?.preferred === "whatsapp" && whatsappUrl && (
-              <a class="btn" href={whatsappUrl} target="_blank" rel="noreferrer">WhatsApp</a>
-            )}
-            {content.cta?.preferred === "agenda" && content.cta?.bookingUrl && (
-              <a class="btn" href={content.cta.bookingUrl} target="_blank" rel="noreferrer">Agendar</a>
-            )}
-            {content.cta?.preferred === "call" && content.contact?.phone && (
-              <a class="btn" href={`tel:${content.contact.phone}`}>Llamar</a>
-            )}
-          </header>
-
-          <section class="grid grid-2" style="margin-top:1rem;">
-            <div class="card">
-              <h2 style="margin:0;">Acerca de</h2>
-              <p class="muted" style="margin-top:.5rem;">{content.profile?.intro || "—"}</p>
-            </div>
-
-            <div class="card">
-              <h2 style="margin:0;">Contacto</h2>
-              <ul style="margin-top:.5rem; padding-left:1rem;">
-                {content.contact?.email && <li><a href={`mailto:${content.contact.email}`}>{content.contact.email}</a></li>}
-                {content.contact?.phone && <li><a href={`tel:${content.contact.phone}`}>{content.contact.phone}</a></li>}
-                {content.contact?.address && <li class="muted">{content.contact.address}</li>}
-              </ul>
-            </div>
-          </section>
-
-          {showDebug && (
-            <section class="card" style="margin-top:1rem;">
-              <h2 style="margin:0;">Debug: JSON completo</h2>
-              <pre style="margin-top:.75rem; overflow:auto; font-size:.8rem;">
-{JSON.stringify(content, null, 2)}
-              </pre>
-            </section>
+          {content.services?.length ? (
+            <ul class="mt-3 grid gap-3 md:grid-cols-2">
+              {content.services.map((sv) => (
+                <li class="rounded-xl border border-black/10 bg-white p-4">
+                  <div class="font-semibold">{sv.name}</div>
+                  {sv.description ? <div class="mt-1 text-black/70">{sv.description}</div> : null}
+                  {(sv.priceMin != null || sv.priceMax != null) ? (
+                    <div class="mt-2 text-sm text-black/60">
+                      {sv.priceMin != null ? `Desde $${sv.priceMin}` : ""}
+                      {sv.priceMax != null ? ` · Hasta $${sv.priceMax}` : ""}
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="mt-3 text-black/60">Sin registros.</p>
           )}
-        </>
-      )}
+        </section>
+      ) : null}
+
+      {/* FAQS */}
+      {content.sections?.showFaqs ? (
+        <section class="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <h2 class="text-lg font-semibold">FAQs</h2>
+
+          {content.faqs?.length ? (
+            <div class="mt-3 space-y-3">
+              {content.faqs.map((f) => (
+                <details class="rounded-xl border border-black/10 bg-white p-4">
+                  <summary class="cursor-pointer font-semibold">{f.q}</summary>
+                  <p class="mt-2 text-black/70">{f.a}</p>
+                </details>
+              ))}
+            </div>
+          ) : (
+            <p class="mt-3 text-black/60">Sin registros.</p>
+          )}
+        </section>
+      ) : null}
+
+      {/* TESTIMONIOS */}
+      {content.sections?.showTestimonials ? (
+        <section class="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <h2 class="text-lg font-semibold">Testimonios</h2>
+
+          {content.testimonials?.length ? (
+            <ul class="mt-3 grid gap-3 md:grid-cols-2">
+              {content.testimonials.map((t) => (
+                <li class="rounded-xl border border-black/10 bg-white p-4">
+                  <div class="font-semibold">{t.author}</div>
+                  {t.rating != null ? <div class="text-sm text-black/60">⭐ {t.rating}/5</div> : null}
+                  <p class="mt-2 text-black/70">{t.text}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="mt-3 text-black/60">Sin registros.</p>
+          )}
+        </section>
+      ) : null}
+
+      {/* HORARIO */}
+      {content.schedule?.length ? (
+        <section class="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <h2 class="text-lg font-semibold">Horario</h2>
+          <ul class="mt-3 space-y-2 text-black/70">
+            {content.schedule.map((h) => (
+              <li class="rounded-xl border border-black/10 bg-white p-3">
+                <span class="font-semibold">{h.days}</span>: {h.open} – {h.close}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* DEBUG: JSON crudo */}
+      {debug ? (
+        <section class="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <h2 class="text-lg font-semibold">DEBUG: JSON recibido del backend</h2>
+          <pre class="mt-3 overflow-auto rounded-xl bg-black/5 p-4 text-xs">
+{JSON.stringify(content, null, 2)}
+          </pre>
+        </section>
+      ) : null}
     </main>
   </body>
 </html>
