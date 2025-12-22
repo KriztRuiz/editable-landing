@@ -9,8 +9,7 @@ const raw = Astro.params.siteId;
 const siteId = String(raw ?? "").trim();
 
 // Debug opcional: /ejemplo2?debug=1
-const showDebug =
-  import.meta.env.DEV || Astro.url.searchParams.get("debug") === "1";
+const showDebug = import.meta.env.DEV || Astro.url.searchParams.get("debug") === "1";
 
 let content: SiteContent | null = null;
 
@@ -18,16 +17,15 @@ try {
   if (!siteId) throw new Error("siteId vacío");
   content = await fetchContent(siteId);
 } catch (err) {
-  // 404 real, manteniendo la URL
+  // 404 real (sin redireccionar)
   Astro.response.status = 404;
-  Astro.response.statusText = "Not found";
-  console.error("[siteId].astro error:", err);
+  Astro.response.statusText = "Not Found";
+  console.error("[siteId].astro fetchContent error:", err);
 }
 
-// Helpers de tema (evito depender de tipos React en .astro)
-const colors = content?.theme?.colors;
-const cssVars = colors
-  ? `--p:${colors.primary};--s:${colors.secondary ?? colors.primary};--bg:${colors.background};--t:${colors.text};`
+// CSS vars (string) — para no depender de React/CSSProperties
+const cssVars = content?.theme?.colors
+  ? `--p:${content.theme.colors.primary};--s:${content.theme.colors.secondary ?? content.theme.colors.primary};--bg:${content.theme.colors.background};--t:${content.theme.colors.text};`
   : `--p:#0f172a;--s:#1e293b;--bg:#ffffff;--t:#0b0b0b;`;
 
 const title = content?.seo?.title || content?.profile?.fullName || siteId || "Sitio";
@@ -46,28 +44,27 @@ const whatsappUrl =
     {description && <meta name="description" content={description} />}
   </head>
 
-  <body style={cssVars} class="min-h-screen" data-siteid={siteId}>
-    <style>
-      {`
-        body { background: var(--bg); color: var(--t); }
-        .btn {
-          display:inline-flex; align-items:center; justify-content:center;
-          padding:.75rem 1rem; border-radius: .9rem;
-          background: var(--p); color: white; text-decoration:none;
-          font-weight: 600;
-        }
-        .card { border: 1px solid rgba(0,0,0,.08); border-radius: 1rem; padding: 1rem; background: white; }
-        .muted { color: rgba(0,0,0,.55); }
-        .grid { display:grid; gap:1rem; }
-        @media (min-width: 768px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
-      `}
+  <body style={cssVars}>
+    <!-- ✅ CSS puro: SIN { } y SIN backticks -->
+    <style is:global>
+      body { background: var(--bg); color: var(--t); margin: 0; font-family: system-ui, sans-serif; }
+      main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+      .card { border: 1px solid rgba(0,0,0,.08); border-radius: 1rem; padding: 1rem; background: #fff; }
+      .muted { color: rgba(0,0,0,.55); }
+      .btn {
+        display:inline-flex; align-items:center; justify-content:center;
+        padding:.75rem 1rem; border-radius: .9rem;
+        background: var(--p); color: #fff; text-decoration:none; font-weight: 700;
+      }
+      .grid { display:grid; gap: 1rem; }
+      @media (min-width: 768px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+      img.logo { width: 80px; height: 80px; border-radius: 1rem; object-fit: cover; }
     </style>
 
-    <main class="mx-auto" style="max-width: 1100px; padding: 1.5rem;">
-      {/* ---- 404 “bonito” y real (status 404) ---- */}
+    <main>
       {!content ? (
         <section class="card">
-          <h1 style="font-size: 1.5rem; font-weight: 800;">Sitio no encontrado</h1>
+          <h1 style="margin:0; font-size: 1.5rem;">Sitio no encontrado</h1>
           <p class="muted" style="margin-top:.5rem;">
             No existe contenido para <code>{siteId}</code> o el backend no respondió.
           </p>
@@ -77,13 +74,7 @@ const whatsappUrl =
               <summary style="cursor:pointer; font-weight:700;">Debug</summary>
               <pre style="margin-top:.75rem; overflow:auto; font-size:.8rem;">
 {JSON.stringify(
-  {
-    siteId,
-    env: {
-      // esto es solo informativo (NO imprime secretos si no los tienes como PUBLIC_)
-      PUBLIC_API_BASE: import.meta.env.PUBLIC_API_BASE,
-    },
-  },
+  { siteId, PUBLIC_API_BASE: import.meta.env.PUBLIC_API_BASE },
   null,
   2
 )}
@@ -93,57 +84,35 @@ const whatsappUrl =
         </section>
       ) : (
         <>
-          {/* ---- Header ---- */}
           <header class="card" style="display:flex; gap:1rem; align-items:center;">
             {content.theme?.logoUrl && (
-              <img
-                src={content.theme.logoUrl}
-                alt={`Logo de ${title}`}
-                width="80"
-                height="80"
-                style="border-radius: 1rem; object-fit: cover;"
-                loading="lazy"
-              />
+              <img class="logo" src={content.theme.logoUrl} alt={`Logo de ${title}`} loading="lazy" />
             )}
 
             <div style="flex:1;">
-              <h1 style="font-size: 1.8rem; font-weight: 900; margin: 0;">
-                {content.profile?.fullName ?? title}
-              </h1>
-              {content.profile?.headline && (
-                <p class="muted" style="margin-top:.25rem;">
-                  {content.profile.headline}
-                </p>
-              )}
+              <h1 style="margin:0; font-size:1.8rem;">{content.profile?.fullName ?? title}</h1>
+              {content.profile?.headline && <p class="muted" style="margin:.25rem 0 0;">{content.profile.headline}</p>}
             </div>
 
-            {/* CTA preferido */}
             {content.cta?.preferred === "whatsapp" && whatsappUrl && (
-              <a class="btn" href={whatsappUrl} target="_blank" rel="noreferrer">
-                WhatsApp
-              </a>
+              <a class="btn" href={whatsappUrl} target="_blank" rel="noreferrer">WhatsApp</a>
             )}
             {content.cta?.preferred === "agenda" && content.cta?.bookingUrl && (
-              <a class="btn" href={content.cta.bookingUrl} target="_blank" rel="noreferrer">
-                Agendar
-              </a>
+              <a class="btn" href={content.cta.bookingUrl} target="_blank" rel="noreferrer">Agendar</a>
             )}
             {content.cta?.preferred === "call" && content.contact?.phone && (
               <a class="btn" href={`tel:${content.contact.phone}`}>Llamar</a>
             )}
           </header>
 
-          {/* ---- Intro / contacto ---- */}
-          <section class="grid grid-2" style="margin-top: 1rem;">
+          <section class="grid grid-2" style="margin-top:1rem;">
             <div class="card">
-              <h2 style="font-size: 1.1rem; font-weight: 800; margin:0;">Acerca de</h2>
-              <p class="muted" style="margin-top:.5rem;">
-                {content.profile?.intro || "—"}
-              </p>
+              <h2 style="margin:0;">Acerca de</h2>
+              <p class="muted" style="margin-top:.5rem;">{content.profile?.intro || "—"}</p>
             </div>
 
             <div class="card">
-              <h2 style="font-size: 1.1rem; font-weight: 800; margin:0;">Contacto</h2>
+              <h2 style="margin:0;">Contacto</h2>
               <ul style="margin-top:.5rem; padding-left:1rem;">
                 {content.contact?.email && <li><a href={`mailto:${content.contact.email}`}>{content.contact.email}</a></li>}
                 {content.contact?.phone && <li><a href={`tel:${content.contact.phone}`}>{content.contact.phone}</a></li>}
@@ -152,79 +121,9 @@ const whatsappUrl =
             </div>
           </section>
 
-          {/* ---- Secciones con toggles ---- */}
-          {content.sections?.showAreas && (
-            <section class="card" style="margin-top:1rem;">
-              <h2 style="font-size: 1.1rem; font-weight: 800; margin:0;">Áreas / Especialidades</h2>
-              {content.specialties?.length ? (
-                <ul style="margin-top:.75rem; padding-left:1rem;">
-                  {content.specialties.map((s) => (
-                    <li>{s.name}{s.description ? ` — ${s.description}` : ""}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p class="muted" style="margin-top:.5rem;">Sin registros.</p>
-              )}
-            </section>
-          )}
-
-          {content.sections?.showServices && (
-            <section class="card" style="margin-top:1rem;">
-              <h2 style="font-size: 1.1rem; font-weight: 800; margin:0;">Servicios</h2>
-              {content.services?.length ? (
-                <ul style="margin-top:.75rem; padding-left:1rem;">
-                  {content.services.map((sv) => (
-                    <li>
-                      {sv.name}
-                      {sv.description ? ` — ${sv.description}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p class="muted" style="margin-top:.5rem;">Sin registros.</p>
-              )}
-            </section>
-          )}
-
-          {content.sections?.showFaqs && (
-            <section class="card" style="margin-top:1rem;">
-              <h2 style="font-size: 1.1rem; font-weight: 800; margin:0;">Preguntas frecuentes</h2>
-              {content.faqs?.length ? (
-                <div style="margin-top:.75rem;">
-                  {content.faqs.map((f) => (
-                    <details style="padding:.5rem 0;">
-                      <summary style="cursor:pointer; font-weight:700;">{f.q}</summary>
-                      <p class="muted" style="margin-top:.5rem;">{f.a}</p>
-                    </details>
-                  ))}
-                </div>
-              ) : (
-                <p class="muted" style="margin-top:.5rem;">Sin registros.</p>
-              )}
-            </section>
-          )}
-
-          {content.sections?.showTestimonials && (
-            <section class="card" style="margin-top:1rem;">
-              <h2 style="font-size: 1.1rem; font-weight: 800; margin:0;">Testimonios</h2>
-              {content.testimonials?.length ? (
-                <ul style="margin-top:.75rem; padding-left:1rem;">
-                  {content.testimonials.map((t) => (
-                    <li>
-                      <strong>{t.author}</strong>: <span class="muted">{t.text}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p class="muted" style="margin-top:.5rem;">Sin registros.</p>
-              )}
-            </section>
-          )}
-
-          {/* ---- “Contenido completo” (solo si debug=1 o DEV) ---- */}
           {showDebug && (
             <section class="card" style="margin-top:1rem;">
-              <h2 style="font-size: 1.1rem; font-weight: 800; margin:0;">Debug: JSON completo</h2>
+              <h2 style="margin:0;">Debug: JSON completo</h2>
               <pre style="margin-top:.75rem; overflow:auto; font-size:.8rem;">
 {JSON.stringify(content, null, 2)}
               </pre>
