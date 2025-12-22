@@ -2,75 +2,77 @@
 export const prerender = false;
 
 import "../styles/global.css";
-import { fetchContent } from "../lib/api";
+import { fetchContent, primaryCssVars } from "../lib/api";
 import type { SiteContent } from "../types";
 
 const { siteId } = Astro.params;
 const id = String(siteId ?? "");
 
-// 1) Cargar contenido
+// Trae el contenido del sitio; si no existe -> /404
 let content: SiteContent | null = null;
-
 try {
   content = await fetchContent(id);
+
+  // Tu fetchContent en 404 puede devolver {} (según tu lib/api.ts)
+  if (!content || (typeof content === "object" && Object.keys(content as any).length === 0)) {
+    return Astro.redirect("/404");
+  }
 } catch {
   return Astro.redirect("/404");
 }
 
-// Si tu fetchContent devuelve {} cuando no existe, esto lo manda a 404 también
-if (!content || !("siteId" in (content as any)) || !(content as any).siteId) {
-  return Astro.redirect("/404");
-}
-
 const title = content?.profile?.fullName ?? id;
-const headline = content?.profile?.headline ?? "";
 const description = content?.seo?.description ?? "";
 
-// Helpers
-const isPlainObject = (v: unknown): v is Record<string, any> =>
-  v !== null && typeof v === "object" && !Array.isArray(v);
+// Tema (opcional)
+const cssVars =
+  content?.theme?.colors ? primaryCssVars(content.theme.colors) : ({} as Record<string, string>);
 
-const prettyKey = (k: string) =>
-  k
-    .replace(/^_+/, "")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/[-_]+/g, " ")
-    .trim()
-    .replace(/^./, (c) => c.toUpperCase());
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
 
-function renderValue(value: any, basePath = "root"): any {
+function prettyKey(k: string) {
+  // profile.fullName -> Profile Full Name
+  const spaced = k
+    .replace(/[_\-]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function renderValue(value: unknown, path: string) {
   // Arrays
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return <p class="text-sm text-gray-500">(vacío)</p>;
+      return <span class="text-gray-400">[]</span>;
     }
     return (
-      <ul class="space-y-2">
+      <div class="space-y-3">
         {value.map((item, idx) => (
-          <li class="rounded-lg border bg-white p-3" data-path={`${basePath}[${idx}]`}>
-            {renderValue(item, `${basePath}[${idx}]`)}
-          </li>
+          <div class="rounded-lg border bg-white p-3" data-path={`${path}[${idx}]`}>
+            <div class="text-xs font-semibold text-gray-500 mb-2">Item {idx + 1}</div>
+            {renderValue(item, `${path}[${idx}]`)}
+          </div>
         ))}
-      </ul>
+      </div>
     );
   }
 
   // Objects
-  if (isPlainObject(value)) {
+  if (isRecord(value)) {
     const entries = Object.entries(value);
     if (entries.length === 0) {
-      return <p class="text-sm text-gray-500">(objeto vacío)</p>;
+      return <span class="text-gray-400">{`{}`}</span>;
     }
 
     return (
-      <dl class="space-y-3">
+      <dl class="grid gap-3">
         {entries.map(([k, v]) => (
-          <div class="rounded-lg bg-gray-50 p-3 border" data-path={`${basePath}.${k}`}>
-            <dt class="text-xs font-semibold uppercase tracking-wide text-gray-600">
-              {prettyKey(k)}
-            </dt>
-            <dd class="mt-2">
-              {renderValue(v, `${basePath}.${k}`)}
+          <div class="rounded-lg border bg-gray-50 p-3" data-path={`${path}.${k}`}>
+            <dt class="text-xs font-semibold text-gray-600">{prettyKey(k)}</dt>
+            <dd class="mt-1 text-sm text-gray-900">
+              {renderValue(v, `${path}.${k}`)}
             </dd>
           </div>
         ))}
@@ -79,11 +81,11 @@ function renderValue(value: any, basePath = "root"): any {
   }
 
   // Primitives
-  if (value === "" || value === null || value === undefined) {
-    return <span class="text-sm text-gray-500">(vacío)</span>;
-  }
+  if (value === "") return <span class="text-gray-400">(vacío)</span>;
+  if (value === null) return <span class="text-gray-400">null</span>;
+  if (value === undefined) return <span class="text-gray-400">undefined</span>;
 
-  return <span class="text-sm text-gray-900">{String(value)}</span>;
+  return <span class="break-words">{String(value)}</span>;
 }
 ---
 
@@ -96,84 +98,19 @@ function renderValue(value: any, basePath = "root"): any {
     <link rel="icon" href="/favicon.svg" type="image/x-icon" />
   </head>
 
-  <body class="bg-white text-gray-900">
-    <main class="container mx-auto px-4 py-8">
+  <body class="bg-white text-gray-900" style={cssVars}>
+    <main class="container mx-auto px-4 py-10 max-w-4xl">
       <header class="mb-8">
         <h1 class="text-3xl font-bold">{title}</h1>
-        {headline && <p class="text-lg text-gray-700 mt-1">{headline}</p>}
-        {description && <p class="text-gray-700 mt-3 max-w-2xl">{description}</p>}
+        {content?.profile?.headline && (
+          <p class="mt-2 text-lg text-gray-700">{content.profile.headline}</p>
+        )}
+        {description && <p class="mt-2 text-gray-600">{description}</p>}
       </header>
 
-      <section class="grid gap-6 md:grid-cols-2">
-        <article class="rounded-2xl border p-5">
-          <h2 class="text-lg font-semibold mb-3">Identidad</h2>
-          {renderValue({ _id: (content as any)._id, siteId: (content as any).siteId, __v: (content as any).__v }, "identity")}
-        </article>
-
-        <article class="rounded-2xl border p-5">
-          <h2 class="text-lg font-semibold mb-3">Perfil</h2>
-          {renderValue(content.profile, "profile")}
-        </article>
-
-        <article class="rounded-2xl border p-5">
-          <h2 class="text-lg font-semibold mb-3">Contacto</h2>
-          {renderValue(content.contact, "contact")}
-        </article>
-
-        <article class="rounded-2xl border p-5">
-          <h2 class="text-lg font-semibold mb-3">CTA</h2>
-          {renderValue(content.cta, "cta")}
-        </article>
-
-        <article class="rounded-2xl border p-5">
-          <h2 class="text-lg font-semibold mb-3">SEO</h2>
-          {renderValue(content.seo, "seo")}
-        </article>
-
-        <article class="rounded-2xl border p-5">
-          <h2 class="text-lg font-semibold mb-3">Tema</h2>
-          {renderValue(content.theme, "theme")}
-        </article>
-
-        <article class="rounded-2xl border p-5">
-          <h2 class="text-lg font-semibold mb-3">Settings</h2>
-          {renderValue(content.settings, "settings")}
-        </article>
-
-        <article class="rounded-2xl border p-5">
-          <h2 class="text-lg font-semibold mb-3">Secciones</h2>
-          {renderValue(content.sections, "sections")}
-        </article>
-
-        <article class="rounded-2xl border p-5 md:col-span-2">
-          <h2 class="text-lg font-semibold mb-3">Especialidades</h2>
-          {renderValue(content.specialties, "specialties")}
-        </article>
-
-        <article class="rounded-2xl border p-5 md:col-span-2">
-          <h2 class="text-lg font-semibold mb-3">Servicios</h2>
-          {renderValue(content.services, "services")}
-        </article>
-
-        <article class="rounded-2xl border p-5 md:col-span-2">
-          <h2 class="text-lg font-semibold mb-3">FAQs</h2>
-          {renderValue(content.faqs, "faqs")}
-        </article>
-
-        <article class="rounded-2xl border p-5 md:col-span-2">
-          <h2 class="text-lg font-semibold mb-3">Testimonios</h2>
-          {renderValue(content.testimonials, "testimonials")}
-        </article>
-
-        <article class="rounded-2xl border p-5 md:col-span-2">
-          <h2 class="text-lg font-semibold mb-3">Horario</h2>
-          {renderValue(content.schedule, "schedule")}
-        </article>
-
-        <article class="rounded-2xl border p-5 md:col-span-2">
-          <h2 class="text-lg font-semibold mb-3">Fechas</h2>
-          {renderValue({ createdAt: (content as any).createdAt, updatedAt: (content as any).updatedAt }, "dates")}
-        </article>
+      <section class="rounded-2xl border bg-white p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-4">Estructura del contenido (JSON)</h2>
+        {renderValue(content, "root")}
       </section>
     </main>
   </body>
