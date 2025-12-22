@@ -1,26 +1,150 @@
 ---
 export const prerender = false;
-// Página dinámica para sitios individuales…
+
 import "../styles/global.css";
 import { fetchContent } from "../lib/api";
 import type { SiteContent } from "../types";
 
 const { siteId } = Astro.params;
-const id = siteId as string;
+const id = String(siteId ?? "").trim();
 
-// Intentamos obtener el contenido; si falla, redirigimos a /404
+if (!id) {
+  return Astro.redirect("/404");
+}
+
 let content: SiteContent | null = null;
 try {
   content = await fetchContent(id);
-} catch (err) {
-  // Redirige a la página 404.astro (si existe)
-  return Astro.redirect('/404');
+} catch {
+  return Astro.redirect("/404");
 }
 
-const title = content?.profile?.fullName ?? id;
-const headline = content?.profile?.headline ?? "";
-const description = content?.seo?.description ?? "";
+// Si tu fetchContent retorna {} en 404, esto evita render “vacío” y manda a 404
+if (!content || !(content as any).siteId) {
+  return Astro.redirect("/404");
+}
+
+const title = content.profile?.fullName ?? (content as any).siteId ?? id;
+const description = content.seo?.description ?? "";
+
+/**
+ * Helpers para renderizar todos los campos aunque estén vacíos
+ */
+const isPlainObject = (v: unknown): v is Record<string, any> =>
+  !!v && typeof v === "object" && !Array.isArray(v);
+
+const isImageUrl = (v: unknown) =>
+  typeof v === "string" && /^https?:\/\/.+\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(v);
+
+const isUrl = (v: unknown) => typeof v === "string" && /^https?:\/\//i.test(v);
+
+const prettyKey = (key: string) => {
+  // convierte camelCase o snake_case a algo legible
+  const s = key.replace(/_/g, " ").replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+function renderValue(value: any, path = ""): any {
+  // null/undefined/"" -> renderizar placeholder
+  if (value === null || value === undefined || value === "") {
+    return <span class="text-gray-400">—</span>;
+  }
+
+  // boolean
+  if (typeof value === "boolean") {
+    return (
+      <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${value ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+        {value ? "true" : "false"}
+      </span>
+    );
+  }
+
+  // number
+  if (typeof value === "number") {
+    return <span class="font-mono">{String(value)}</span>;
+  }
+
+  // string
+  if (typeof value === "string") {
+    if (isImageUrl(value)) {
+      return (
+        <div class="space-y-2">
+          <a class="text-blue-600 underline break-all" href={value} target="_blank" rel="noreferrer">{value}</a>
+          <img src={value} alt={path || "image"} class="max-h-48 rounded border object-contain" loading="lazy" />
+        </div>
+      );
+    }
+    if (isUrl(value)) {
+      return <a class="text-blue-600 underline break-all" href={value} target="_blank" rel="noreferrer">{value}</a>;
+    }
+    return <span class="break-words">{value}</span>;
+  }
+
+  // array
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return <span class="text-gray-400">Sin elementos</span>;
+    }
+    return (
+      <div class="space-y-3">
+        {value.map((item, idx) => (
+          <div class="rounded border bg-white p-3" data-key={`${path}-${idx}`}>
+            {isPlainObject(item)
+              ? renderObject(item, `${path}[${idx}]`)
+              : renderValue(item, `${path}[${idx}]`)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // object
+  if (isPlainObject(value)) {
+    return renderObject(value, path);
+  }
+
+  return <span class="text-gray-400">—</span>;
+}
+
+function renderObject(obj: Record<string, any>, basePath = ""): any {
+  const entries = Object.entries(obj);
+
+  // Si son "colors", hacemos un render especial con muestras
+  if (basePath.endsWith("colors") || obj.primary || obj.secondary || obj.background || obj.text) {
+    const colorKeys = ["primary", "secondary", "background", "text"].filter((k) => k in obj);
+    if (colorKeys.length) {
+      return (
+        <div class="grid gap-3 sm:grid-cols-2">
+          {colorKeys.map((k) => {
+            const v = obj[k];
+            return (
+              <div class="flex items-center gap-3" data-key={`${basePath}.${k}`}>
+                <div class="h-8 w-8 rounded border" style={`background:${typeof v === "string" ? v : "#fff"}`} />
+                <div class="min-w-0">
+                  <div class="text-sm font-semibold">{prettyKey(k)}</div>
+                  <div class="text-xs text-gray-600 font-mono break-all">{typeof v === "string" ? v : "—"}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+  }
+
+  return (
+    <dl class="grid gap-3 sm:grid-cols-2">
+      {entries.map(([k, v]) => (
+        <div class="rounded bg-gray-50 p-3 border" data-key={`${basePath}.${k}`}>
+          <dt class="text-xs font-semibold text-gray-600">{prettyKey(k)}</dt>
+          <dd class="mt-1 text-sm text-gray-900">{renderValue(v, `${basePath}.${k}`)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 ---
+
 <html lang="es">
   <head>
     <meta charset="utf-8" />
@@ -29,12 +153,91 @@ const description = content?.seo?.description ?? "";
     <meta name="description" content={description} />
     <link rel="icon" href="/favicon.svg" type="image/x-icon" />
   </head>
+
   <body class="bg-white text-gray-900">
-    <main class="container mx-auto px-4 py-8">
-      <h1 class="text-3xl font-bold mb-4">{title}</h1>
-      {headline && <p class="text-xl mb-2">{headline}</p>}
-      {description && <p class="mb-4">{description}</p>}
-      {/* Aquí puedes incluir tus componentes (Áreas, Servicios, FAQ…) pasando datos desde `content` */}
+    <main class="container mx-auto px-4 py-8 max-w-5xl">
+      <header class="mb-8">
+        <p class="text-sm text-gray-600">Sitio:</p>
+        <h1 class="text-3xl font-bold">{title}</h1>
+        <p class="mt-2 text-gray-700">{description || ""}</p>
+        <div class="mt-3 text-xs text-gray-500 font-mono break-all">
+          siteId: {(content as any).siteId ?? id} • _id: {(content as any)._id ?? "—"}
+        </div>
+      </header>
+
+      <section class="space-y-8">
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">Profile</h2>
+          {renderObject((content as any).profile ?? {}, "profile")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">Contact</h2>
+          {renderObject((content as any).contact ?? {}, "contact")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">Specialties</h2>
+          {renderValue((content as any).specialties ?? [], "specialties")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">Services</h2>
+          {renderValue((content as any).services ?? [], "services")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">FAQs</h2>
+          {renderValue((content as any).faqs ?? [], "faqs")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">Testimonials</h2>
+          {renderValue((content as any).testimonials ?? [], "testimonials")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">Schedule</h2>
+          {renderValue((content as any).schedule ?? [], "schedule")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">CTA</h2>
+          {renderObject((content as any).cta ?? {}, "cta")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">SEO</h2>
+          {renderObject((content as any).seo ?? {}, "seo")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">Theme</h2>
+          {renderObject((content as any).theme ?? {}, "theme")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">Settings</h2>
+          {renderObject((content as any).settings ?? {}, "settings")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">Sections</h2>
+          {renderObject((content as any).sections ?? {}, "sections")}
+        </div>
+
+        <div class="rounded-xl border p-5">
+          <h2 class="text-xl font-semibold mb-4">Meta</h2>
+          {renderObject(
+            {
+              createdAt: (content as any).createdAt,
+              updatedAt: (content as any).updatedAt,
+              __v: (content as any).__v,
+            },
+            "meta"
+          )}
+        </div>
+      </section>
     </main>
   </body>
 </html>
