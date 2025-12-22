@@ -5,17 +5,72 @@ export type Testimonial = { author: string; text: string; rating?: number };
 export type Schedule = { days: string; open: string; close: string };
 
 export type SiteContent = {
-  siteId?: string;
-  profile: { fullName: string; licenseId?: string; headline?: string; intro?: string; photoUrl?: string };
-  contact: { phone: string; whatsapp: string; email: string; address?: string; mapUrl?: string };
+  _id?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+
+  siteId: string;
+
+  profile: {
+    fullName: string;
+    licenseId?: string;
+    headline?: string;
+    intro?: string;
+    photoUrl?: string;
+  };
+
+  contact: {
+    phone: string;
+    whatsapp: string;
+    email: string;
+    address?: string;
+    mapUrl?: string;
+  };
+
   specialties: Specialty[];
   services: Service[];
   faqs: FAQ[];
   testimonials: Testimonial[];
   schedule: Schedule[];
-  cta: { preferred: "whatsapp" | "call" | "agenda"; bookingUrl?: string; whatsappMessage?: string };
-  seo: { title: string; description: string; cityKeywords: string[] };
-  theme: { colors: { primary: string; secondary: string; background: string; text: string }; logoUrl?: string; coverUrl?: string };
-  settings: { layoutOption: 1|2|3|4|5|6; mainArea: string; targetCity: string };
-  sections: { showAreas: boolean; showServices: boolean; showFaqs: boolean; showTestimonials: boolean; showMap: boolean };
+
+  cta: {
+    preferred: "whatsapp" | "call" | "agenda";
+    bookingUrl?: string;
+    whatsappMessage?: string;
+  };
+
+  seo: {
+    title: string;
+    description?: string;
+    cityKeywords: string[];
+  };
+
+  theme: {
+    colors: {
+      primary: string;
+      secondary?: string;
+      background: string;
+      text: string;
+    };
+    logoUrl?: string;
+    coverUrl?: string;
+  };
+
+  settings: {
+    layoutOption: 1 | 2 | 3 | 4 | 5 | 6;
+    mainArea: string;
+    targetCity: string;
+  };
+
+  sections: {
+    showAreas: boolean;
+    showServices: boolean;
+    showFaqs: boolean;
+    showTestimonials: boolean;
+    showMap: boolean;
+  };
+
+  // Por si el backend agrega cosas nuevas sin romperte el tipado
+  [key: string]: any;
 };
