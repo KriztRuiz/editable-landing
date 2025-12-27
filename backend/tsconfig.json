@@ -9,5 +9,6 @@
     "esModuleInterop": true,
     "strict": true
   },
-  "include": ["src/**/*", "../abogado-aguilar-frontend/src/api"]
+  "include": ["src/**/*"],
+  "exclude": ["../abogado-aguilar-frontend/**/*", "node_modules", "dist"]
 }

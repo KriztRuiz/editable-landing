@@ -2,7 +2,7 @@
   "name": "abogado-aguilar",
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "dev": "npm run seed-admin && nodemon src/index.ts",
     "seed-admin": "tsx src/scripts/seedAdmin.ts"
