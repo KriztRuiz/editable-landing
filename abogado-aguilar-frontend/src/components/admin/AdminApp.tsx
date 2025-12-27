@@ -1,11 +1,10 @@
 // src/components/admin/AdminApp.tsx
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { SiteContent } from "../../types";
-import { apiGet, apiPut } from "./api";
+import { apiGet, apiPut, apiLogout, apiMe } from "./api";
 import Login from "./Login";
 import { Btn } from "./ui";
 
-// Tabs
 import ProfileTab from "./tabs/ProfileTab";
 import ContactTab from "./tabs/ContactTab";
 import CtaTab from "./tabs/CtaTab";
@@ -19,16 +18,8 @@ import ScheduleTab from "./tabs/ScheduleTab";
 import SectionsTab from "./tabs/SectionsTab";
 import JsonTab from "./tabs/JsonTab";
 
-/* 🟢 Motion */
-import {
-  motion,
-  AnimatePresence,
-  LayoutGroup,
-  useReducedMotion,
-  type Variants,
-} from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup, useReducedMotion, type Variants } from "framer-motion";
 
-/* -------------------------- helpers -------------------------- */
 type Tab =
   | "perfil" | "contacto" | "cta" | "seo" | "tema"
   | "especialidades" | "servicios" | "faqs" | "testimonios" | "horario"
@@ -40,7 +31,6 @@ const isUrl = (v?: string) => {
   try { new URL(v); return true; } catch { return false; }
 };
 
-// Validación mínima en cliente (evita PUT con datos obviously inválidos)
 function validateContent(d: SiteContent): string[] {
   const errs: string[] = [];
   if (!d.profile.fullName?.trim()) errs.push("Perfil: nombre completo requerido");
@@ -48,21 +38,17 @@ function validateContent(d: SiteContent): string[] {
   if (!d.cta.preferred) errs.push("CTA: preferida requerida");
   if (!d.seo.title?.trim()) errs.push("SEO: title requerido");
   if (!d.seo.description?.trim()) errs.push("SEO: description requerida");
-  // URLs opcionales
   if (!isUrl(d.profile.photoUrl)) errs.push("Foto: URL inválida");
   if (!isUrl(d.theme.logoUrl)) errs.push("Tema: logo URL inválida");
-  // coverUrl es opcional si la agregaste en tu tipo
-  // @ts-ignore - por si aún no está en tus tipos
+  // @ts-ignore
   if (!isUrl(d.theme.coverUrl)) errs.push("Tema: portada URL inválida");
   if (!isUrl(d.cta.bookingUrl)) errs.push("CTA: booking URL inválida");
   if (!isUrl(d.contact.mapUrl)) errs.push("Contacto: map URL inválida");
   return errs;
 }
 
-/* =========================== Componente =========================== */
 export default function AdminApp({ siteId }: { siteId: string }) {
-  // client:only => podemos leer localStorage en el init
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("authToken"));
+  const [authed, setAuthed] = useState<boolean | null>(null); // null = verificando
   const [data, setData] = useState<SiteContent | null>(null);
   const [initial, setInitial] = useState<SiteContent | null>(null);
   const [tab, setTab] = useState<Tab>("perfil");
@@ -71,34 +57,48 @@ export default function AdminApp({ siteId }: { siteId: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
-  // 🟢 accesibilidad: respeta "Reducir movimiento"
-  const reduce = useReducedMotion(); // para minimizar desplazamientos si el usuario lo solicita.
+  const reduce = useReducedMotion();
 
-  // Carga inicial
+  // 1) Check sesión (cookie)
   useEffect(() => {
-    if (!token) return;
+    let alive = true;
+    (async () => {
+      try {
+        await apiMe();
+        if (alive) setAuthed(true);
+      } catch {
+        if (alive) setAuthed(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // 2) Cargar data cuando estás authed
+  useEffect(() => {
+    if (!authed) return;
     setLoading(true);
-    apiGet(siteId, token)
+    apiGet(siteId)
       .then((d) => {
         setData(d);
         setInitial(d);
         setGlobalError(null);
       })
       .catch((e: any) => {
-        // Si la API devuelve 401 (token caducado o inválido),
-        // eliminamos el token para volver a mostrar la pantalla de login.
-        if (e?.status === 401 || (typeof e?.message === 'string' && e.message.includes('401'))) {
-          localStorage.removeItem('authToken');
-          setToken(null);
+        if (e?.status === 401 || (typeof e?.message === "string" && e.message.includes("401"))) {
+          // token expiró o es inválido => vuelve a login
+          setAuthed(false);
+          setData(null);
+          setInitial(null);
           setGlobalError(null);
         } else {
-          setGlobalError(e?.message);
+          setGlobalError(e?.message || "Error al cargar");
         }
       })
       .finally(() => setLoading(false));
-  }, [token, siteId]);
+  }, [authed, siteId]);
 
-  // Atajo Ctrl/Cmd+S para guardar
+  const hasChanges = !!(data && initial && !deepEqual(data, initial));
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
@@ -108,15 +108,14 @@ export default function AdminApp({ siteId }: { siteId: string }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [token, data, saving]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, saving, authed]);
 
-  // Aviso al cerrar si hay cambios sin guardar
-  const hasChanges = !!(data && initial && !deepEqual(data, initial));
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (!hasChanges) return;
       e.preventDefault();
-      e.returnValue = ""; // muestra diálogo nativo
+      e.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
@@ -127,9 +126,9 @@ export default function AdminApp({ siteId }: { siteId: string }) {
     return c ? { background: c.background, color: c.text } : {};
   }, [data]);
 
-  function logout() {
-    localStorage.removeItem("authToken");
-    setToken(null);
+  async function logout() {
+    await apiLogout().catch(() => {});
+    setAuthed(false);
     setData(null);
     setInitial(null);
   }
@@ -139,7 +138,7 @@ export default function AdminApp({ siteId }: { siteId: string }) {
   }
 
   async function handleSave() {
-    if (!token || !data) return;
+    if (!authed || !data) return;
     const v = validateContent(data);
     if (v.length) {
       setGlobalError("Corrige: " + v.join(" · "));
@@ -149,29 +148,31 @@ export default function AdminApp({ siteId }: { siteId: string }) {
     setMessage(null);
     setGlobalError(null);
     try {
-      const saved = await apiPut(siteId, token, data);
+      const saved = await apiPut(siteId, data);
       setData(saved);
       setInitial(saved);
       setMessage("Guardado ✓");
       setTimeout(() => setMessage(null), 1500);
     } catch (e: any) {
-      setGlobalError(e.message || "Error al guardar");
+      if (e?.status === 401 || (typeof e?.message === "string" && e.message.includes("401"))) {
+        setAuthed(false);
+        setData(null);
+        setInitial(null);
+        return;
+      }
+      setGlobalError(e?.message || "Error al guardar");
     } finally {
       setSaving(false);
     }
   }
 
-  // Estado de login / carga
-  if (!token) {
-    return (
-      <Login
-        onLogin={(t) => {
-          localStorage.setItem("authToken", t);
-          setToken(t);
-        }}
-      />
-    );
+  // UI estados
+  if (authed === null) return <div className="container-xl py-12">Verificando sesión…</div>;
+
+  if (!authed) {
+    return <Login onLoggedIn={() => setAuthed(true)} />;
   }
+
   if (loading) return <div className="container-xl py-12">Cargando…</div>;
   if (globalError) return <div className="container-xl py-12 text-red-600">Error: {globalError}</div>;
   if (!data) return null;
@@ -191,22 +192,12 @@ export default function AdminApp({ siteId }: { siteId: string }) {
     { id: "json", label: "JSON", node: <JsonTab data={data} setData={setData} /> },
   ];
 
-  // Variants reutilizables
-  const headerV: Variants = {
-    hidden: { opacity: 0, y: reduce ? 0 : 8 },
-    show: { opacity: 1, y: 0 }
-  };
+  const headerV: Variants = { hidden: { opacity: 0, y: reduce ? 0 : 8 }, show: { opacity: 1, y: 0 } };
   const tabsV: Variants = {
     hidden: { opacity: 0, y: reduce ? 0 : 6 },
-    show: {
-      opacity: 1, y: 0,
-      transition: { staggerChildren: 0.05, delayChildren: 0.03 }
-    }
+    show: { opacity: 1, y: 0, transition: { staggerChildren: 0.05, delayChildren: 0.03 } },
   };
-  const tabItemV: Variants = {
-    hidden: { opacity: 0, y: reduce ? 0 : 6 },
-    show: { opacity: 1, y: 0 }
-  };
+  const tabItemV: Variants = { hidden: { opacity: 0, y: reduce ? 0 : 6 }, show: { opacity: 1, y: 0 } };
 
   return (
     <motion.div
@@ -222,21 +213,14 @@ export default function AdminApp({ siteId }: { siteId: string }) {
           <h1 className="text-2xl font-bold">Admin de contenido</h1>
         </div>
 
-        <div
-          className="items-center gap-2"
-          style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}
-        >
+        <div className="items-center gap-2" style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}>
           <AnimatePresence>
             {hasChanges && (
               <motion.span
                 key="unsaved"
                 className="text-xs px-2 py-1 rounded-full bg-yellow-100"
                 initial={{ opacity: 0, y: reduce ? 0 : -4 }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                  ...(reduce ? {} : { scale: [1, 1.04, 1] }) // “latido” sutil
-                }}
+                animate={{ opacity: 1, y: 0, ...(reduce ? {} : { scale: [1, 1.04, 1] }) }}
                 exit={{ opacity: 0, y: reduce ? 0 : -4 }}
                 transition={{ duration: 0.4, repeat: reduce ? 0 : Infinity, repeatDelay: 3 }}
               >
@@ -269,28 +253,20 @@ export default function AdminApp({ siteId }: { siteId: string }) {
         </div>
       </header>
 
-      {/* NAV de pestañas con underline animado (shared layout) */}
       <LayoutGroup>
-        <motion.nav
-          className="flex flex-wrap gap-2 mb-4"
-          variants={tabsV}
-          initial="hidden"
-          animate="show"
-        >
+        <motion.nav className="flex flex-wrap gap-2 mb-4" variants={tabsV} initial="hidden" animate="show">
           {tabs.map((t) => {
             const active = tab === t.id;
             return (
               <motion.button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`relative px-3 py-2 rounded-lg border ${
-                  active ? "bg-black text-white" : "bg-white"
-                } border-black/10`}
+                className={`relative px-3 py-2 rounded-lg border ${active ? "bg-black text-white" : "bg-white"} border-black/10`}
                 variants={tabItemV}
                 whileHover={{ scale: 1.03, y: reduce ? 0 : -1 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                layout // anima pequeños cambios de tamaño/posición
+                layout
               >
                 {t.label}
                 {active && (
@@ -306,7 +282,6 @@ export default function AdminApp({ siteId }: { siteId: string }) {
         </motion.nav>
       </LayoutGroup>
 
-      {/* Panel con transición (enter/exit) entre pestañas */}
       <AnimatePresence mode="wait">
         <motion.div
           key={tab}

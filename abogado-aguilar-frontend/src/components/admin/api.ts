@@ -1,36 +1,49 @@
 import type { SiteContent } from "../../types";
 
-const API_BASE =
-  (import.meta as any).env?.PUBLIC_API_BASE && (import.meta as any).env.PUBLIC_API_BASE.length
-    ? (import.meta as any).env.PUBLIC_API_BASE
-    : ""; // vacío = usa proxy de Vite/Astro en dev
+type ApiError = Error & { status?: number; body?: string };
+
+async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, {
+    credentials: "include", // 👈 importante con cookies
+    ...init,
+    headers: { ...(init?.headers ?? {}), accept: "application/json" },
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    const err: ApiError = new Error(body || `Request failed (${res.status})`);
+    err.status = res.status;
+    err.body = body;
+    throw err;
+  }
+
+  return (await res.json()) as T;
+}
 
 export async function apiLogin(email: string, password: string) {
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
+  await requestJson<{ ok: boolean }>("/api/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  if (!res.ok) throw new Error(`Login HTTP ${res.status}`);
-  return (await res.json()) as { token: string };
 }
 
-export async function apiGet(siteId: string, token: string) {
-  const res = await fetch(`${API_BASE}/api/content/admin/${siteId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error(`GET HTTP ${res.status}`);
-  return (await res.json()) as SiteContent;
+export async function apiMe() {
+  return await requestJson<{ ok: boolean }>("/api/auth/me");
 }
 
-export async function apiPut(siteId: string, token: string, payload: SiteContent) {
-  const res = await fetch(`${API_BASE}/api/content/admin/${siteId}`, {
+export async function apiLogout() {
+  await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+}
+
+export async function apiGet(siteId: string): Promise<SiteContent> {
+  return await requestJson<SiteContent>(`/api/content/admin/${encodeURIComponent(siteId)}`);
+}
+
+export async function apiPut(siteId: string, data: SiteContent): Promise<SiteContent> {
+  return await requestJson<SiteContent>(`/api/content/admin/${encodeURIComponent(siteId)}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`PUT HTTP ${res.status} ${text}`);
-  }
-  return (await res.json()) as SiteContent;
 }

@@ -1,63 +1,54 @@
 import { useState } from "react";
 import { apiLogin } from "./api";
-import { Btn, Field, Input } from "./ui";
+import { Btn } from "./ui";
 
-export default function Login({ onLogin }: { onLogin: (token: string) => void }) {
+export default function Login({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setError(null);
+    setErr(null);
+    setLoading(true);
     try {
-      const { token } = await apiLogin(email, password);
-      onLogin(token);
+      await apiLogin(email, password);
+      onLoggedIn();
     } catch (e: any) {
-      // Si la API responde con 401 (credenciales incorrectas),
-      // mostramos un mensaje específico en lugar de un texto genérico.
-      if (e?.status === 401 || (typeof e?.message === 'string' && e.message.includes('401'))) {
-        setError("Usuario o contraseña incorrecta");
-      } else {
-        setError(e?.message || "Error de autenticación");
-      }
+      setErr(e?.message || "No se pudo iniciar sesión");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-[60vh] grid place-items-center">
-      <form onSubmit={submit} className="w-full max-w-md card p-6">
-        <h1 className="text-2xl font-bold mb-4">Iniciar sesión</h1>
-        <Field label="Email">
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-        <div className="mt-3">
-          <Field label="Contraseña">
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </Field>
-        </div>
-        {error && <p className="mt-3 text-red-600 text-sm">{error}</p>}
-        <div className="mt-4 flex items-center gap-2">
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-xl font-semibold bg-black text-white"
-            disabled={busy}
-          >
-            {busy ? "Entrando…" : "Entrar"}
-          </button>
-        </div>
+    <div className="container-xl py-10 max-w-md">
+      <h1 className="text-2xl font-bold mb-4">Entrar al panel</h1>
+
+      <form onSubmit={submit} className="space-y-3">
+        <input
+          className="w-full border rounded px-3 py-2"
+          placeholder="Correo"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          type="email"
+          required
+        />
+        <input
+          className="w-full border rounded px-3 py-2"
+          placeholder="Contraseña"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          type="password"
+          required
+        />
+
+        {err && <p className="text-sm text-red-600">{err}</p>}
+
+        <Btn kind="primary" disabled={loading}>
+          {loading ? "Entrando…" : "Entrar"}
+        </Btn>
       </form>
     </div>
   );
