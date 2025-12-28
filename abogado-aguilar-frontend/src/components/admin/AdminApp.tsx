@@ -1,299 +1,433 @@
 // src/components/admin/AdminApp.tsx
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { SiteContent } from "../../types";
-import { apiGet, apiPut, apiLogout, apiMe } from "./api";
-import Login from "./Login";
-import { Btn } from "./ui";
+import { apiGet, apiLogin, apiLogout, apiMe, apiPut, ApiError } from "./api";
 
-import ProfileTab from "./tabs/ProfileTab";
-import ContactTab from "./tabs/ContactTab";
-import CtaTab from "./tabs/CtaTab";
-import SeoTab from "./tabs/SeoTab";
-import ThemeTab from "./tabs/ThemeTab";
-import SpecialtiesTab from "./tabs/SpecialtiesTab";
-import ServicesTab from "./tabs/ServicesTab";
-import FaqsTab from "./tabs/FaqsTab";
-import TestimonialsTab from "./tabs/TestimonialsTab";
-import ScheduleTab from "./tabs/ScheduleTab";
-import SectionsTab from "./tabs/SectionsTab";
-import JsonTab from "./tabs/JsonTab";
+type ViewState = "checking" | "login" | "panel";
 
-import { motion, AnimatePresence, LayoutGroup, useReducedMotion, type Variants } from "framer-motion";
-
-type Tab =
-  | "perfil" | "contacto" | "cta" | "seo" | "tema"
-  | "especialidades" | "servicios" | "faqs" | "testimonios" | "horario"
-  | "secciones" | "json";
-
-const deepEqual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-const isUrl = (v?: string) => {
-  if (!v) return true;
-  try { new URL(v); return true; } catch { return false; }
+type Props = {
+  siteId: string;
 };
 
-function validateContent(d: SiteContent): string[] {
-  const errs: string[] = [];
-  if (!d.profile.fullName?.trim()) errs.push("Perfil: nombre completo requerido");
-  if (!d.contact.email?.includes("@")) errs.push("Contacto: email inválido");
-  if (!d.cta.preferred) errs.push("CTA: preferida requerida");
-  if (!d.seo.title?.trim()) errs.push("SEO: title requerido");
-  if (!d.seo.description?.trim()) errs.push("SEO: description requerida");
-  if (!isUrl(d.profile.photoUrl)) errs.push("Foto: URL inválida");
-  if (!isUrl(d.theme.logoUrl)) errs.push("Tema: logo URL inválida");
-  // @ts-ignore
-  if (!isUrl(d.theme.coverUrl)) errs.push("Tema: portada URL inválida");
-  if (!isUrl(d.cta.bookingUrl)) errs.push("CTA: booking URL inválida");
-  if (!isUrl(d.contact.mapUrl)) errs.push("Contacto: map URL inválida");
-  return errs;
+function safeStringify(value: unknown) {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return "";
+  }
 }
 
-export default function AdminApp({ siteId }: { siteId: string }) {
-  const [authed, setAuthed] = useState<boolean | null>(null); // null = verificando
-  const [data, setData] = useState<SiteContent | null>(null);
-  const [initial, setInitial] = useState<SiteContent | null>(null);
-  const [tab, setTab] = useState<Tab>("perfil");
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [globalError, setGlobalError] = useState<string | null>(null);
+function parseJsonOrThrow<T>(text: string): T {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("JSON inválido. Revisa comas, llaves y comillas.");
+  }
+}
 
-  const reduce = useReducedMotion();
+export default function AdminApp({ siteId }: Props) {
+  const [view, setView] = useState<ViewState>("checking");
 
-  // 1) Check sesión (cookie)
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        await apiMe();
-        if (alive) setAuthed(true);
-      } catch {
-        if (alive) setAuthed(false);
+  // auth
+  const [userEmail, setUserEmail] = useState<string>("");
+
+  // login form
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  // content
+  const [content, setContent] = useState<SiteContent | null>(null);
+  const [draftJson, setDraftJson] = useState<string>("");
+
+  // ui state
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>("");
+  const [notice, setNotice] = useState<string>("");
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!content) return false;
+    return safeStringify(content) !== draftJson;
+  }, [content, draftJson]);
+
+  async function loadContent() {
+    setError("");
+    setNotice("");
+    setBusy(true);
+
+    try {
+      const data = await apiGet(siteId);
+      setContent(data);
+      setDraftJson(safeStringify(data));
+    } catch (e) {
+      // Si expiró la cookie => vuelve a login
+      if (e instanceof ApiError && e.status === 401) {
+        setUserEmail("");
+        setView("login");
+        setError("Sesión expirada. Vuelve a iniciar sesión.");
+        return;
       }
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  // 2) Cargar data cuando estás authed
-  useEffect(() => {
-    if (!authed) return;
-    setLoading(true);
-    apiGet(siteId)
-      .then((d) => {
-        setData(d);
-        setInitial(d);
-        setGlobalError(null);
-      })
-      .catch((e: any) => {
-        if (e?.status === 401 || (typeof e?.message === "string" && e.message.includes("401"))) {
-          // token expiró o es inválido => vuelve a login
-          setAuthed(false);
-          setData(null);
-          setInitial(null);
-          setGlobalError(null);
-        } else {
-          setGlobalError(e?.message || "Error al cargar");
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [authed, siteId]);
-
-  const hasChanges = !!(data && initial && !deepEqual(data, initial));
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        handleSave();
-      }
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, saving, authed]);
-
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (!hasChanges) return;
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [hasChanges]);
-
-  const themeVars: CSSProperties = useMemo(() => {
-    const c = data?.theme?.colors;
-    return c ? { background: c.background, color: c.text } : {};
-  }, [data]);
-
-  async function logout() {
-    await apiLogout().catch(() => {});
-    setAuthed(false);
-    setData(null);
-    setInitial(null);
   }
 
-  function resetChanges() {
-    if (initial) setData(initial);
+  async function bootstrap() {
+    setError("");
+    setNotice("");
+    setView("checking");
+
+    try {
+      const me = await apiMe();
+
+      if (!me.ok) {
+        // NO estás logueado: esto es lo normal cuando no hay cookie.
+        setView("login");
+        return;
+      }
+
+      setUserEmail(me.user.email);
+      setView("panel");
+      await loadContent();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setView("login");
+    }
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setNotice("");
+    setBusy(true);
+
+    try {
+      await apiLogin(email.trim(), password);
+      setPassword("");
+      await bootstrap();
+    } catch (e2) {
+      const msg =
+        e2 instanceof ApiError && e2.status === 401
+          ? "Correo o contraseña incorrectos."
+          : e2 instanceof Error
+          ? e2.message
+          : String(e2);
+      setError(msg);
+      setView("login");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLogout() {
+    setError("");
+    setNotice("");
+    setBusy(true);
+    try {
+      await apiLogout();
+    } finally {
+      setBusy(false);
+      setUserEmail("");
+      setContent(null);
+      setDraftJson("");
+      setView("login");
+    }
   }
 
   async function handleSave() {
-    if (!authed || !data) return;
-    const v = validateContent(data);
-    if (v.length) {
-      setGlobalError("Corrige: " + v.join(" · "));
-      return;
-    }
-    setSaving(true);
-    setMessage(null);
-    setGlobalError(null);
+    if (!siteId) return;
+    setError("");
+    setNotice("");
+    setBusy(true);
+
     try {
-      const saved = await apiPut(siteId, data);
-      setData(saved);
-      setInitial(saved);
-      setMessage("Guardado ✓");
-      setTimeout(() => setMessage(null), 1500);
-    } catch (e: any) {
-      if (e?.status === 401 || (typeof e?.message === "string" && e.message.includes("401"))) {
-        setAuthed(false);
-        setData(null);
-        setInitial(null);
-        return;
+      const parsed = parseJsonOrThrow<SiteContent>(draftJson);
+
+      // Asegura consistencia
+      (parsed as any).siteId = (parsed as any).siteId ?? siteId;
+
+      const saved = await apiPut(siteId, parsed);
+      setContent(saved);
+      setDraftJson(safeStringify(saved));
+      setNotice("Guardado ✅");
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        setUserEmail("");
+        setView("login");
+        setError("Sesión expirada. Vuelve a iniciar sesión.");
+      } else {
+        setError(e instanceof Error ? e.message : String(e));
       }
-      setGlobalError(e?.message || "Error al guardar");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
 
-  // UI estados
-  if (authed === null) return <div className="container-xl py-12">Verificando sesión…</div>;
+  useEffect(() => {
+    void bootstrap();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId]);
 
-  if (!authed) {
-    return <Login onLoggedIn={() => setAuthed(true)} />;
+  if (view === "checking") {
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <h1 style={styles.title}>Panel</h1>
+          <p style={styles.muted}>Comprobando sesión…</p>
+        </div>
+      </div>
+    );
   }
 
-  if (loading) return <div className="container-xl py-12">Cargando…</div>;
-  if (globalError) return <div className="container-xl py-12 text-red-600">Error: {globalError}</div>;
-  if (!data) return null;
+  if (view === "login") {
+    return (
+      <div style={styles.page}>
+        <form style={styles.card} onSubmit={handleLogin}>
+          <h1 style={styles.title}>Entrar al panel</h1>
+          <p style={styles.muted}>
+            Site: <b>{siteId}</b>
+          </p>
 
-  const tabs: { id: Tab; label: string; node: JSX.Element }[] = [
-    { id: "perfil", label: "Perfil", node: <ProfileTab data={data} setData={setData} /> },
-    { id: "contacto", label: "Contacto", node: <ContactTab data={data} setData={setData} /> },
-    { id: "cta", label: "CTA", node: <CtaTab data={data} setData={setData} /> },
-    { id: "seo", label: "SEO", node: <SeoTab data={data} setData={setData} /> },
-    { id: "tema", label: "Tema", node: <ThemeTab data={data} setData={setData} /> },
-    { id: "especialidades", label: "Especialidades", node: <SpecialtiesTab data={data} setData={setData} /> },
-    { id: "servicios", label: "Servicios", node: <ServicesTab data={data} setData={setData} /> },
-    { id: "faqs", label: "FAQs", node: <FaqsTab data={data} setData={setData} /> },
-    { id: "testimonios", label: "Testimonios", node: <TestimonialsTab data={data} setData={setData} /> },
-    { id: "horario", label: "Horario", node: <ScheduleTab data={data} setData={setData} /> },
-    { id: "secciones", label: "Secciones", node: <SectionsTab data={data} setData={setData} /> },
-    { id: "json", label: "JSON", node: <JsonTab data={data} setData={setData} /> },
-  ];
+          <label style={styles.label}>Correo</label>
+          <input
+            style={styles.input}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="correo@ejemplo.com"
+            autoComplete="email"
+            required
+          />
 
-  const headerV: Variants = { hidden: { opacity: 0, y: reduce ? 0 : 8 }, show: { opacity: 1, y: 0 } };
-  const tabsV: Variants = {
-    hidden: { opacity: 0, y: reduce ? 0 : 6 },
-    show: { opacity: 1, y: 0, transition: { staggerChildren: 0.05, delayChildren: 0.03 } },
-  };
-  const tabItemV: Variants = { hidden: { opacity: 0, y: reduce ? 0 : 6 }, show: { opacity: 1, y: 0 } };
+          <label style={styles.label}>Contraseña</label>
+          <input
+            style={styles.input}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="current-password"
+            type="password"
+            required
+          />
 
+          {error ? <div style={styles.error}>{error}</div> : null}
+          {notice ? <div style={styles.notice}>{notice}</div> : null}
+
+          <button style={styles.button} type="submit" disabled={busy}>
+            {busy ? "Entrando…" : "Entrar"}
+          </button>
+
+          <p style={styles.small}>
+            Ver un <code>401</code> en Network al cargar <code>/admin</code> es normal si no hay sesión. Lo
+            importante es que la UI no se rompa y puedas iniciar sesión.
+          </p>
+        </form>
+      </div>
+    );
+  }
+
+  // view === "panel"
   return (
-    <motion.div
-      className="container-xl py-6"
-      style={themeVars}
-      initial="hidden"
-      animate="show"
-      variants={headerV}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-    >
-      <header className="flex items-center justify-between mb-4" style={{ display: "block" }}>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Admin de contenido</h1>
+    <div style={styles.page}>
+      <div style={{ ...styles.card, maxWidth: 1000 }}>
+        <div style={styles.topBar}>
+          <div>
+            <h1 style={{ ...styles.title, marginBottom: 2 }}>Panel</h1>
+            <div style={styles.muted}>
+              Site: <b>{siteId}</b> · Usuario: <b>{userEmail}</b>
+            </div>
+          </div>
+
+          <div style={styles.actions}>
+            <button style={styles.secondaryButton} onClick={loadContent} disabled={busy}>
+              Recargar
+            </button>
+            <button style={styles.button} onClick={handleSave} disabled={busy || !draftJson}>
+              {busy ? "Guardando…" : hasUnsavedChanges ? "Guardar cambios" : "Guardar"}
+            </button>
+            <button style={styles.dangerButton} onClick={handleLogout} disabled={busy}>
+              Salir
+            </button>
+          </div>
         </div>
 
-        <div className="items-center gap-2" style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}>
-          <AnimatePresence>
-            {hasChanges && (
-              <motion.span
-                key="unsaved"
-                className="text-xs px-2 py-1 rounded-full bg-yellow-100"
-                initial={{ opacity: 0, y: reduce ? 0 : -4 }}
-                animate={{ opacity: 1, y: 0, ...(reduce ? {} : { scale: [1, 1.04, 1] }) }}
-                exit={{ opacity: 0, y: reduce ? 0 : -4 }}
-                transition={{ duration: 0.4, repeat: reduce ? 0 : Infinity, repeatDelay: 3 }}
-              >
-                Cambios sin guardar
-              </motion.span>
-            )}
-          </AnimatePresence>
+        {error ? <div style={styles.error}>{error}</div> : null}
+        {notice ? <div style={styles.notice}>{notice}</div> : null}
 
-          <AnimatePresence>
-            {message && (
-              <motion.span
-                key="saved-msg"
-                className="text-sm text-green-600"
-                initial={{ opacity: 0, y: reduce ? 0 : -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: reduce ? 0 : -4 }}
-                transition={{ duration: 0.25 }}
-                aria-live="polite"
-              >
-                {message}
-              </motion.span>
-            )}
-          </AnimatePresence>
+        <div style={styles.split}>
+          <div style={styles.col}>
+            <h2 style={styles.h2}>Editar JSON</h2>
+            <textarea
+              style={styles.textarea}
+              value={draftJson}
+              onChange={(e) => setDraftJson(e.target.value)}
+              spellCheck={false}
+            />
+            <div style={styles.muted}>{hasUnsavedChanges ? "Cambios pendientes…" : "Sin cambios pendientes."}</div>
+          </div>
 
-          <Btn onClick={resetChanges} disabled={!hasChanges}>Descartar</Btn>
-          <Btn onClick={handleSave} kind="primary" disabled={saving || !hasChanges}>
-            {saving ? "Guardando…" : "Guardar"}
-          </Btn>
-          <Btn onClick={logout}>Salir</Btn>
+          <div style={styles.col}>
+            <h2 style={styles.h2}>Resumen</h2>
+            <div style={styles.previewBox}>
+              {content ? (
+                <pre style={styles.pre}>
+                  {safeStringify(content).slice(0, 1200)}
+                  {safeStringify(content).length > 1200 ? "\n… (recortado)" : ""}
+                </pre>
+              ) : (
+                <div style={styles.muted}>No hay contenido cargado.</div>
+              )}
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <h2 style={styles.h2}>Tips</h2>
+              <ul style={styles.ul}>
+                <li>
+                  Si el backend devuelve <code>401</code>, te regresará al login automáticamente.
+                </li>
+                <li>
+                  Si guardas y no ves cambios en el sitio público, revisa que el frontend consuma{" "}
+                  <code>/api/content/public/&lt;site&gt;</code> en runtime (sin prerender).
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
-      </header>
-
-      <LayoutGroup>
-        <motion.nav className="flex flex-wrap gap-2 mb-4" variants={tabsV} initial="hidden" animate="show">
-          {tabs.map((t) => {
-            const active = tab === t.id;
-            return (
-              <motion.button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`relative px-3 py-2 rounded-lg border ${active ? "bg-black text-white" : "bg-white"} border-black/10`}
-                variants={tabItemV}
-                whileHover={{ scale: 1.03, y: reduce ? 0 : -1 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                layout
-              >
-                {t.label}
-                {active && (
-                  <motion.div
-                    layoutId="tab-underline"
-                    className="absolute left-2 right-2 -bottom-1 h-0.5"
-                    style={{ background: "currentColor", opacity: 0.6 }}
-                  />
-                )}
-              </motion.button>
-            );
-          })}
-        </motion.nav>
-      </LayoutGroup>
-
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={tab}
-          initial={{ opacity: 0, y: reduce ? 0 : 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: reduce ? 0 : -8 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className="space-y-4"
-        >
-          {tabs.find((t) => t.id === tab)?.node}
-        </motion.div>
-      </AnimatePresence>
-    </motion.div>
+      </div>
+    </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  page: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    padding: 24,
+    background: "#f3f4f6",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+  },
+  card: {
+    width: "100%",
+    maxWidth: 420,
+    background: "white",
+    borderRadius: 16,
+    padding: 20,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+    border: "1px solid rgba(0,0,0,0.06)",
+  },
+  topBar: {
+    display: "flex",
+    gap: 12,
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginBottom: 12,
+  },
+  actions: {
+    display: "flex",
+    gap: 8,
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  title: { margin: 0, fontSize: 28, fontWeight: 800, color: "#111827" },
+  h2: { margin: "10px 0 8px", fontSize: 16, fontWeight: 700, color: "#111827" },
+  muted: { color: "#6b7280", fontSize: 13 },
+  small: { color: "#6b7280", fontSize: 12, marginTop: 12, lineHeight: 1.35 },
+  label: { display: "block", marginTop: 12, marginBottom: 6, fontWeight: 600, fontSize: 13, color: "#111827" },
+  input: {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(0,0,0,0.15)",
+    outline: "none",
+    fontSize: 14,
+  },
+  textarea: {
+    width: "100%",
+    minHeight: 420,
+    padding: 12,
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.15)",
+    outline: "none",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontSize: 12,
+    lineHeight: 1.35,
+  },
+  button: {
+    marginTop: 16,
+    padding: "10px 14px",
+    borderRadius: 12,
+    border: "none",
+    background: "#111827",
+    color: "white",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  secondaryButton: {
+    padding: "10px 14px",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.15)",
+    background: "white",
+    color: "#111827",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  dangerButton: {
+    padding: "10px 14px",
+    borderRadius: 12,
+    border: "none",
+    background: "#b91c1c",
+    color: "white",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  error: {
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 12,
+    background: "rgba(239,68,68,0.1)",
+    border: "1px solid rgba(239,68,68,0.25)",
+    color: "#991b1b",
+    fontSize: 13,
+  },
+  notice: {
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 12,
+    background: "rgba(34,197,94,0.12)",
+    border: "1px solid rgba(34,197,94,0.25)",
+    color: "#065f46",
+    fontSize: 13,
+  },
+  split: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 16,
+    marginTop: 16,
+  },
+  col: { minWidth: 0 },
+  previewBox: {
+    border: "1px solid rgba(0,0,0,0.12)",
+    borderRadius: 12,
+    padding: 12,
+    background: "#fafafa",
+    minHeight: 240,
+    overflow: "auto",
+  },
+  pre: {
+    margin: 0,
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontSize: 12,
+    lineHeight: 1.35,
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+  },
+  ul: {
+    margin: 0,
+    paddingLeft: 18,
+    color: "#111827",
+    fontSize: 13,
+    lineHeight: 1.5,
+  },
+};

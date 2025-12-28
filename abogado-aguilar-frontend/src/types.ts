@@ -1,16 +1,27 @@
-export type Specialty = { name: string; description?: string; icon?: string };
-export type Service = { name: string; description?: string; priceMin?: number; priceMax?: number };
-export type FAQ = { q: string; a: string };
-export type Testimonial = { author: string; text: string; rating?: number };
-export type Schedule = { days: string; open: string; close: string };
+// src/types.ts
 
-export type SiteContent = {
-  _id?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  __v?: number;
+export type MongoId = string;
+export type WithId = { _id?: MongoId };
 
-  siteId: string;
+// Subdocumentos (Mongo suele agregar _id en arrays)
+export type Specialty = WithId & { name: string; description?: string; icon?: string };
+export type Service = WithId & { name: string; description?: string; priceMin?: number; priceMax?: number };
+export type FAQ = WithId & { q: string; a: string };
+export type Testimonial = WithId & { author: string; text: string; rating?: number };
+export type Schedule = WithId & { days: string; open: string; close: string };
+
+export type CtaPreferred = "whatsapp" | "call" | "agenda";
+
+export type ThemeColors = {
+  primary: string;
+  secondary: string;
+  background: string;
+  text: string;
+};
+
+export type SiteContent = WithId & {
+  // lo dejas opcional para no romper estados iniciales del front
+  siteId?: string;
 
   profile: {
     fullName: string;
@@ -35,24 +46,19 @@ export type SiteContent = {
   schedule: Schedule[];
 
   cta: {
-    preferred: "whatsapp" | "call" | "agenda";
+    preferred: CtaPreferred;
     bookingUrl?: string;
     whatsappMessage?: string;
   };
 
   seo: {
     title: string;
-    description?: string;
+    description: string;
     cityKeywords: string[];
   };
 
   theme: {
-    colors: {
-      primary: string;
-      secondary?: string;
-      background: string;
-      text: string;
-    };
+    colors: ThemeColors;
     logoUrl?: string;
     coverUrl?: string;
   };
@@ -71,6 +77,23 @@ export type SiteContent = {
     showMap: boolean;
   };
 
-  // Por si el backend agrega cosas nuevas sin romperte el tipado
-  [key: string]: any;
+  // Metadatos típicos cuando el backend te devuelve el documento “tal cual” de Mongo
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
 };
+
+// (Opcional) Tipos genéricos de respuestas de API para admin/auth.
+// No rompen nada si no los usas todavía.
+export type ApiError = { ok: false; error: string; status?: number };
+export type ApiOk<T> = { ok: true; data: T };
+export type ApiResult<T> = ApiOk<T> | ApiError;
+
+export type AuthUser = WithId & {
+  email: string;
+  role?: string;
+  siteId?: string;
+};
+
+export type AuthMeResult = ApiResult<AuthUser>;
+export type AuthLoginResult = ApiResult<AuthUser>;
